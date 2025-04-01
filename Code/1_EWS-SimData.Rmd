@@ -1,0 +1,1616 @@
+# **Looking for EWS in Simulated Data**
+
+## **Required Packages**
+
+```{r, include = FALSE}
+require(scales)
+require(evobiR)
+require(gdata)
+require(doBy)
+require(ecp)
+require(strucchange)
+require(TTR)
+require(moments)
+```
+
+# **Data Exploration**
+
+## **Read in Data**
+
+```{r}
+## Constant temperature
+constant1 <- read.csv("Data/Simulated/constant.incidence.last.120.1.csv")
+constant2 <- read.csv("Data/Simulated/constant.incidence.last.120.2.csv")
+constant3 <- read.csv("Data/Simulated/constant.incidence.last.120.3.csv")
+constant4 <- read.csv("Data/Simulated/constant.incidence.last.120.4.csv")
+constant5 <- read.csv("Data/Simulated/constant.incidence.last.120.5.csv")
+constant6 <- read.csv("Data/Simulated/constant.incidence.last.120.6.csv")
+constant7 <- read.csv("Data/Simulated/constant.incidence.last.120.7.csv")
+constant8 <- read.csv("Data/Simulated/constant.incidence.last.120.8.csv")
+constant9 <- read.csv("Data/Simulated/constant.incidence.last.120.9.csv")
+constant10 <- read.csv("Data/Simulated/constant.incidence.last.120.10.csv")
+
+## Variable temperature
+warming1 <- read.csv("Data/Simulated/warming.incidence.last.120.1.csv")
+warming2 <- read.csv("Data/Simulated/warming.incidence.last.120.2.csv")
+warming3 <- read.csv("Data/Simulated/warming.incidence.last.120.3.csv")
+warming4 <- read.csv("Data/Simulated/warming.incidence.last.120.4.csv")
+warming5 <- read.csv("Data/Simulated/warming.incidence.last.120.5.csv")
+warming6 <- read.csv("Data/Simulated/warming.incidence.last.120.6.csv")
+warming7 <- read.csv("Data/Simulated/warming.incidence.last.120.7.csv")
+warming8 <- read.csv("Data/Simulated/warming.incidence.last.120.8.csv")
+warming9 <- read.csv("Data/Simulated/warming.incidence.last.120.9.csv")
+warming10 <- read.csv("Data/Simulated/warming.incidence.last.120.10.csv")
+```
+
+**Let's do some quick summarizing and visualization.**
+
+```{r}
+nrow(constant1); ncol(constant1); nrow(warming1); ncol(warming1)
+constant1[1:10, 1:6]; warming1[1:10, 1:6]
+
+par(mfrow = c(2, 2))
+
+## Constant temp.
+plot(constant1$X, constant1$V1, type = "l", main = "Constant Temperature (1)", xlab = "Day of Experiment", ylab = "Incidence", ylim = c(0, 100), col = "red2")
+lines(constant1$X, constant1$V2, col = "orange1")
+lines(constant1$X, constant1$V3, col = "goldenrod1")
+lines(constant1$X, constant1$V4, col = "forestgreen")
+lines(constant1$X, constant1$V5, col = "cornflowerblue")
+lines(constant1$X, constant1$V6, col = "orchid")
+
+plot(constant2$X, constant2$V1, type = "l", main = "Constant Temperature (2)", xlab = "Day of Experiment", ylab = "Incidence", ylim = c(0, 100), col = "red2")
+lines(constant2$X, constant2$V2, col = "orange1")
+lines(constant2$X, constant2$V3, col = "goldenrod1")
+lines(constant2$X, constant2$V4, col = "forestgreen")
+lines(constant2$X, constant2$V5, col = "cornflowerblue")
+lines(constant2$X, constant2$V6, col = "orchid")
+
+plot(constant3$X, constant3$V1, type = "l", main = "Constant Temperature (3)", xlab = "Day of Experiment", ylab = "Incidence", ylim = c(0, 100), col = "red2")
+lines(constant3$X, constant3$V2, col = "orange1")
+lines(constant3$X, constant3$V3, col = "goldenrod1")
+lines(constant3$X, constant3$V4, col = "forestgreen")
+lines(constant3$X, constant3$V5, col = "cornflowerblue")
+lines(constant3$X, constant3$V6, col = "orchid")
+
+plot(constant4$X, constant4$V1, type = "l", main = "Constant Temperature (4)", xlab = "Day of Experiment", ylab = "Incidence", ylim = c(0, 100), col = "red2")
+lines(constant4$X, constant4$V2, col = "orange1")
+lines(constant4$X, constant4$V3, col = "goldenrod1")
+lines(constant4$X, constant4$V4, col = "forestgreen")
+lines(constant4$X, constant4$V5, col = "cornflowerblue")
+lines(constant4$X, constant4$V6, col = "orchid")
+
+## Increasing temp.
+plot(warming1$X, warming1$V1, type = "l", main = "Warming Temperature (1)", xlab = "Day of Experiment", ylab = "Incidence", ylim = c(0, 100), col = "red2")
+lines(warming1$X, warming1$V2, col = "orange1")
+lines(warming1$X, warming1$V3, col = "goldenrod1")
+lines(warming1$X, warming1$V4, col = "forestgreen")
+lines(warming1$X, warming1$V5, col = "cornflowerblue")
+lines(warming1$X, warming1$V6, col = "orchid")
+
+plot(warming2$X, warming2$V1, type = "l", main = "Warming Temperature (2)", xlab = "Day of Experiment", ylab = "Incidence", ylim = c(0, 100), col = "red2")
+lines(warming2$X, warming2$V2, col = "orange1")
+lines(warming2$X, warming2$V3, col = "goldenrod1")
+lines(warming2$X, warming2$V4, col = "forestgreen")
+lines(warming2$X, warming2$V5, col = "cornflowerblue")
+lines(warming2$X, warming2$V6, col = "orchid")
+
+plot(warming3$X, warming3$V1, type = "l", main = "Warming Temperature (3)", xlab = "Day of Experiment", ylab = "Incidence", ylim = c(0, 100), col = "red2")
+lines(warming3$X, warming3$V2, col = "orange1")
+lines(warming3$X, warming3$V3, col = "goldenrod1")
+lines(warming3$X, warming3$V4, col = "forestgreen")
+lines(warming3$X, warming3$V5, col = "cornflowerblue")
+lines(warming3$X, warming3$V6, col = "orchid")
+
+plot(warming4$X, warming4$V1, type = "l", main = "Warming Temperature (4)", xlab = "Day of Experiment", ylab = "Incidence", ylim = c(0, 100), col = "red2")
+lines(warming4$X, warming4$V2, col = "orange1")
+lines(warming4$X, warming4$V3, col = "goldenrod1")
+lines(warming4$X, warming4$V4, col = "forestgreen")
+lines(warming4$X, warming4$V5, col = "cornflowerblue")
+lines(warming4$X, warming4$V6, col = "orchid")
+```
+
+**Each .csv has 120 rows (one for each day the the "experiment"), and 101 columns (one for "Time", and 100 for simulated data). Each sheet (of ten) represents another batch of 100 simulations.**
+
+## **Data Manipulation**
+
+**Calculate daily incidence across sheets:**
+
+```{r}
+# Bind all sheets, minus the first column (days)
+# Resulting data frames will have 120 rows (days) and 1000 columns (simulations)
+constant.incidence.daily <- cbind(constant1[ ,2:101], constant2[ ,2:101], constant3[ ,2:101],
+                                  constant4[ ,2:101], constant5[ ,2:101], constant6[ ,2:101],
+                                  constant7[ ,2:101], constant8[ ,2:101], constant9[ ,2:101],
+                                  constant10[ ,2:101])
+warming.incidence.daily <- cbind(warming1[ ,2:101], warming2[ ,2:101], warming3[ ,2:101],
+                                  warming4[ ,2:101], warming5[ ,2:101], warming6[ ,2:101],
+                                  warming7[ ,2:101], warming8[ ,2:101], warming9[ ,2:101],
+                                  warming10[ ,2:101])
+```
+
+## **Plotting Data**
+
+**Plot 200 simulations of each treatment:**
+
+```{r}
+# quartz() # Animates the plot
+par(mfrow = c(1, 1))
+par(mar = c(5, 5, 1, 1))
+plot(constant.incidence.daily[ ,1], type = "n",
+     xlab = "Time", ylab = "Number of Infecteds", ylim = c(0, 100))
+for(i in 1:200){
+  lines(constant.incidence.daily[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+  lines(warming.incidence.daily[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+legend(0, 100, legend = c(expression('Constant 10'~degree~'C'), "Warming", expression('R'['0']*' crosses 1')), col = c("red2", "cornflowerblue", "black"), lwd = 2, lty = c(1, 1, 2))
+```
+
+**And the same 200 simulations around epidemic emergence:**
+
+```{r}
+# quartz() # Animates the plot
+par(mfrow = c(1, 1))
+par(mar = c(5, 5, 1, 1))
+plot(constant.incidence.daily[ ,1], type = "n",
+     xlab = "Time", ylab = "Number of Infecteds", xlim = c(50, 70), ylim = c(0, 100))
+for(i in 1:200){
+  lines(constant.incidence.daily[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+  lines(warming.incidence.daily[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+legend(0, 100, legend = c(expression('Constant 10'~degree~'C'), "Warming", expression('R'['0']*' crosses 1')), col = c("red2", "cornflowerblue", "black"), lwd = 2, lty = c(1, 1, 2))
+```
+
+# **Calculating Statistical Metrics Along Variously-Sized Sliding Windows**
+
+**Use `SlidingWindow` to calculate standard deviation, mean, skewness, and kurtosis over 5 day sliding windows.**
+
+-   **Right-skewed (left-heavy) curves are positively skewed; left-skewed (right-heavy) curves are negatively skewed.**
+
+    -   **The function that calculates skewness will return `NaN` if `length(unique(x)) == 1` is `TRUE`.**
+
+-   **Kurtosis: the sharpness of the peak of a frequency-distribution curve.**
+
+    -   **Steep curves show "positive" kurtosis, while gentle curves show "negative" kurtosis.**
+
+    -   **Steep curves are referred to as "leptokurtic" curves, while gentle curves are referred to as "platykurtic" curves. Semi-steep curves are referred to as "mesokurtic" curves.**
+
+**Note that `SlidingWindow` doesn't calculate the window to include the very last index.**
+
+## **5 Day Sliding Window**
+
+**Calculating:**
+
+1.  **Standard deviation**
+
+2.  **Mean**
+
+3.  **Skewness**
+
+4.  **Kurtosis**
+
+```{r}
+num.of.sims <- 10^3
+
+# Making empty matricies
+constant.sims.sd.5 <- matrix(nrow = 115, ncol = num.of.sims)
+constant.sims.mean.5 <- matrix(nrow = 115, ncol = num.of.sims)
+constant.sims.sk.5 <- matrix(nrow = 115, ncol = num.of.sims)
+constant.sims.kt.5 <- matrix(nrow = 115, ncol = num.of.sims)
+
+warming.sims.sd.5 <- matrix(nrow = 115, ncol = num.of.sims)
+warming.sims.mean.5 <- matrix(nrow = 115, ncol = num.of.sims)
+warming.sims.sk.5 <- matrix(nrow = 115, ncol = num.of.sims)
+warming.sims.kt.5 <- matrix(nrow = 115, ncol = num.of.sims)
+
+# Use SlidingWindow to calculate sd, mean, skewness, and kurtosis
+for(i in 1:num.of.sims){
+  constant.sims.sd.5[ ,i] <- SlidingWindow(FUN = "sd", data = constant.incidence.daily[ ,i], window = 5, step = 1)
+  constant.sims.mean.5[ ,i] <- SlidingWindow(FUN = "mean", data = constant.incidence.daily[ ,i], window = 5, step = 1)
+  constant.sims.sk.5[ ,i] <- SlidingWindow(FUN = "skewness", data = constant.incidence.daily[ ,i], window = 5, step = 1)
+  constant.sims.kt.5[ ,i] <- SlidingWindow(FUN = "kurtosis", data = constant.incidence.daily[ ,i], window = 5, step = 1)
+}
+
+for(i in 1:num.of.sims){
+  warming.sims.sd.5[ ,i] <- SlidingWindow(FUN = "sd", data = warming.incidence.daily[ ,i], window = 5, step = 1)
+  warming.sims.mean.5[ ,i] <- SlidingWindow(FUN = "mean", data = warming.incidence.daily[ ,i], window = 5, step = 1)
+  warming.sims.sk.5[ ,i] <- SlidingWindow(FUN = "skewness", data = warming.incidence.daily[ ,i], window = 5, step = 1)
+  warming.sims.kt.5[ ,i] <- SlidingWindow(FUN = "kurtosis", data = warming.incidence.daily[ ,i], window = 5, step = 1)
+}
+```
+
+**Let's do some plotting:**
+
+```{r}
+# Standard deviation
+max(constant.sims.sd.5); max(warming.sims.sd.5)
+plot(constant.sims.sd.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Standard Deviation", ylim = c(0, 10))
+for(i in 1:200){
+  lines(constant.sims.sd.5[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+  lines(warming.sims.sd.5[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+
+# Mean
+max(constant.sims.mean.5); max(warming.sims.mean.5)
+plot(constant.sims.mean.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Mean", ylim = c(0, 105))
+for(i in 1:200){
+  lines(constant.sims.mean.5[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+  lines(warming.sims.mean.5[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+
+# Skewness
+max(constant.sims.sk.5, na.rm = TRUE); max(warming.sims.sk.5, na.rm = TRUE)
+min(constant.sims.sk.5, na.rm = TRUE); min(warming.sims.sk.5, na.rm = TRUE)
+plot(constant.sims.sk.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Skewness", ylim = c(-2, 2))
+for(i in 1:50){
+  lines(constant.sims.sk.5[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.sk.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Skewness", ylim = c(-2, 2))
+for(i in 1:50){
+  lines(warming.sims.sk.5[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+
+# Kurtosis
+max(constant.sims.kt.5, na.rm = TRUE); max(warming.sims.kt.5, na.rm = TRUE)
+min(constant.sims.kt.5, na.rm = TRUE); min(warming.sims.kt.5, na.rm = TRUE)
+plot(constant.sims.kt.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Kurtosis", ylim = c(1, 4))
+for(i in 1:50){
+  lines(constant.sims.kt.5[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.kt.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Kurtosis", ylim = c(1, 4))
+for(i in 1:50){
+  lines(warming.sims.kt.5[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **Variance**
+
+**Given by** ${SD}^2$**.**
+
+```{r}
+constant.sims.var.5 <- constant.sims.sd.5*constant.sims.sd.5
+warming.sims.var.5 <- warming.sims.sd.5*warming.sims.sd.5
+
+max(constant.sims.var.5); max(warming.sims.var.5)
+min(constant.sims.var.5); min(warming.sims.var.5)
+
+plot(constant.sims.var.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Variance", ylim = c(0, 20))
+for(i in 1:200){
+  lines(constant.sims.var.5[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.var.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Variance", ylim = c(0, 105))
+for(i in 1:200){
+  lines(warming.sims.var.5[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **Co-Efficient of Variation**
+
+**Given by** $SD/\mu$**.**
+
+```{r}
+constant.sims.cv.5 <- constant.sims.sd.5/constant.sims.mean.5
+warming.sims.cv.5 <- warming.sims.sd.5/warming.sims.mean.5
+
+max(constant.sims.cv.5); max(warming.sims.cv.5)
+min(constant.sims.cv.5); min(warming.sims.cv.5)
+
+plot(constant.sims.cv.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Co-Efficient of Variance", ylim = c(0, 1))
+for(i in 1:200){
+  lines(constant.sims.cv.5[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.cv.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Co-Efficient of Variance", ylim = c(0, 1))
+for(i in 1:200){
+  lines(warming.sims.cv.5[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **Index of Dispersion**
+
+**Given by** $\sigma/\mu$**.**
+
+```{r}
+constant.sims.id.5 <- constant.sims.var.5/constant.sims.mean.5
+warming.sims.id.5 <- warming.sims.var.5/warming.sims.mean.5
+
+max(constant.sims.id.5); max(warming.sims.id.5)
+min(constant.sims.id.5); min(warming.sims.id.5)
+
+plot(constant.sims.id.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Co-Efficient of Variance", ylim = c(0, 2))
+for(i in 1:200){
+  lines(constant.sims.id.5[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.id.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Co-Efficient of Variance", ylim = c(0, 2))
+for(i in 1:200){
+  lines(warming.sims.id.5[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **First Difference Variance**
+
+**Given by** $\sigma_{t} - \sigma_{t-1}$**. Note that the output will be one index shorter than the rest of the metrics.**
+
+```{r}
+constant.sims.fdv.5 <- matrix(ncol = num.of.sims, nrow = 115)
+warming.sims.fdv.5 <- matrix(ncol = num.of.sims, nrow = 115)
+
+for(i in 1:num.of.sims){
+  for(j in 2:115){
+    constant.sims.fdv.5[j - 1,i] <- constant.sims.var.5[j,i] - constant.sims.var.5[j - 1,i]
+    warming.sims.fdv.5[j - 1,i] <- warming.sims.var.5[j,i] - warming.sims.var.5[j - 1,i]
+  }
+}
+
+# Get rid of NA (last) row
+constant.sims.fdv.5 <- constant.sims.fdv.5[1:114, ]
+warming.sims.fdv.5 <- warming.sims.fdv.5[1:114, ]
+
+max(constant.sims.fdv.5); max(warming.sims.fdv.5)
+min(constant.sims.fdv.5); min(warming.sims.fdv.5)
+
+plot(constant.sims.fdv.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "First Difference Variance", ylim = c(-10, 10))
+for(i in 1:200){
+  lines(constant.sims.fdv.5[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.fdv.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "First Difference Variance", ylim = c(-60, 60))
+for(i in 1:200){
+  lines(warming.sims.fdv.5[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **Autocorrelation and Autocovariance**
+
+**Since `SlidingWindow` doesn't calculate metrics to include the last index, we'll do this manually.**
+
+**`acf`: Computes (and by default plots) estimates of the autocorrelation or autocovariance function.**
+
+**Using `acf(segment)[[1]][2]` pulls out the lag-1 autocorrelation/autocovariance functions.**
+
+```{r}
+constant.sims.ac.5 <- matrix(ncol = num.of.sims, nrow = 120)
+constant.sims.acv.5 <- matrix(ncol = num.of.sims, nrow = 120)
+
+for(j in 1:num.of.sims){
+  for(i in 1:115){
+    window.start <- i
+    window.end <- i + 4
+    
+    segment <- constant.incidence.daily[c(window.start:window.end),j]
+    
+    constant.sims.ac.5[i, j] <- acf(segment, plot = FALSE, type = "correlation")[[1]][2]
+    constant.sims.acv.5[i, j] <- acf(segment, plot = FALSE, type = "covariance")[[1]][2]
+  }
+}
+
+warming.sims.ac.5 <- matrix(ncol = num.of.sims,nrow = 120)
+warming.sims.acv.5 <- matrix(ncol = num.of.sims,nrow = 120)
+
+for(j in 1:num.of.sims){
+  for(i in 1:115){
+    window.start <- i
+    window.end <- i + 4
+    
+    segment <- warming.incidence.daily[c(window.start:window.end),j]
+    
+    warming.sims.ac.5[i, j] <- acf(segment, plot = FALSE, type = "correlation")[[1]][2]
+    warming.sims.acv.5[i, j] <- acf(segment, plot = FALSE, type = "covariance")[[1]][2]
+  }
+}
+
+max(constant.sims.ac.5, na.rm = TRUE); max(warming.sims.ac.5, na.rm = TRUE)
+min(constant.sims.ac.5, na.rm = TRUE); min(warming.sims.ac.5, na.rm = TRUE)
+
+plot(constant.sims.ac.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Autocorrelation", ylim = c(-1, 1))
+for(i in 1:100){
+  lines(constant.sims.ac.5[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.ac.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Autocorrelation", ylim = c(-1, 1))
+for(i in 1:100){
+  lines(warming.sims.ac.5[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+
+max(constant.sims.acv.5, na.rm = TRUE); max(warming.sims.acv.5, na.rm = TRUE)
+min(constant.sims.acv.5, na.rm = TRUE); min(warming.sims.acv.5, na.rm = TRUE)
+
+plot(constant.sims.acv.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Autocovariance", ylim = c(-2, 10))
+for(i in 1:200){
+  lines(constant.sims.acv.5[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.acv.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Autocovariance", ylim = c(-5, 40))
+for(i in 1:200){
+  lines(warming.sims.acv.5[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **Decay Time**
+
+**Given by** $-ts/ln(autocorrelation)$**.**
+
+```{r}
+constant.sims.dt.5 <- matrix(ncol = num.of.sims, nrow = 55)
+warming.sims.dt.5 <- matrix(nco = num.of.sims, nrow = 55)
+
+for(i in 1:num.of.sims){
+  for(j in 1:55){
+    suppressWarnings(constant.sims.dt.5[j, i] <- -j/log(constant.sims.ac.5[j, i]))
+    suppressWarnings(warming.sims.dt.5[j, i] <- -j/log(warming.sims.ac.5[j, i]))
+  }
+}
+
+max(constant.sims.dt.5, na.rm = TRUE); max(warming.sims.dt.5, na.rm = TRUE)
+min(constant.sims.dt.5, na.rm = TRUE); min(warming.sims.dt.5, na.rm = TRUE)
+
+plot(constant.sims.dt.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Decay Time", ylim = c(0, 80))
+for(i in 1:50){
+  lines(constant.sims.dt.5[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.dt.5[ ,1], type = "n",
+     main = "5 Day Sliding Window", xlab = "Time", ylab = "Decay Time", ylim = c(0, 80))
+for(i in 1:50){
+  lines(warming.sims.dt.5[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+## **15 Day Sliding Window**
+
+**Calculating:**
+
+1.  **Standard deviation**
+
+2.  **Mean**
+
+3.  **Skewness**
+
+4.  **Kurtosis**
+
+```{r}
+num.of.sims <- 10^3
+
+# Making empty matricies
+constant.sims.sd.15 <- matrix(nrow = 105, ncol = num.of.sims)
+constant.sims.mean.15 <- matrix(nrow = 105, ncol = num.of.sims)
+constant.sims.sk.15 <- matrix(nrow = 105, ncol = num.of.sims)
+constant.sims.kt.15 <- matrix(nrow = 105, ncol = num.of.sims)
+
+warming.sims.sd.15 <- matrix(nrow = 105, ncol = num.of.sims)
+warming.sims.mean.15 <- matrix(nrow = 105, ncol = num.of.sims)
+warming.sims.sk.15 <- matrix(nrow = 105, ncol = num.of.sims)
+warming.sims.kt.15 <- matrix(nrow = 105, ncol = num.of.sims)
+
+# Use SlidingWindow to calculate sd, mean, skewness, and kurtosis
+for(i in 1:num.of.sims){
+  constant.sims.sd.15[ ,i] <- SlidingWindow(FUN = "sd", data = constant.incidence.daily[ ,i], window = 15,step = 1)
+  constant.sims.mean.15[ ,i] <- SlidingWindow(FUN = "mean", data = constant.incidence.daily[ ,i], window = 15, step = 1)
+  constant.sims.sk.15[ ,i] <- SlidingWindow(FUN = "skewness", data = constant.incidence.daily[ ,i], window = 15, step = 1)
+  constant.sims.kt.15[ ,i] <- SlidingWindow(FUN = "kurtosis", data = constant.incidence.daily[ ,i], window = 15, step = 1)
+}
+
+for(i in 1:num.of.sims){
+  warming.sims.sd.15[ ,i] <- SlidingWindow(FUN = "sd", data = warming.incidence.daily[ ,i], window = 15,step = 1)
+  warming.sims.mean.15[ ,i] <- SlidingWindow(FUN = "mean", data = warming.incidence.daily[ ,i], window = 15, step = 1)
+  warming.sims.sk.15[ ,i] <- SlidingWindow(FUN = "skewness", data = warming.incidence.daily[ ,i], window = 15, step = 1)
+  warming.sims.kt.15[ ,i] <- SlidingWindow(FUN = "kurtosis", data = warming.incidence.daily[ ,i], window = 15, step = 1)
+}
+```
+
+**Let's do some plotting:**
+
+```{r}
+# Standard deviation
+max(constant.sims.sd.15); max(warming.sims.sd.15)
+plot(constant.sims.sd.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Standard Deviation", ylim = c(0, 20))
+for(i in 1:200){
+  lines(constant.sims.sd.15[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+  lines(warming.sims.sd.15[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+
+# Mean
+max(constant.sims.mean.15); max(warming.sims.mean.15)
+plot(constant.sims.mean.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Mean", ylim = c(0, 100))
+for(i in 1:200){
+  lines(constant.sims.mean.15[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+  lines(warming.sims.mean.15[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+
+# Skewness
+max(constant.sims.sk.15, na.rm = TRUE); max(warming.sims.sk.15, na.rm = TRUE)
+min(constant.sims.sk.15, na.rm = TRUE); min(warming.sims.sk.15, na.rm = TRUE)
+plot(constant.sims.sk.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Skewness", ylim = c(-5, 5))
+for(i in 1:50){
+  lines(constant.sims.sk.15[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.sk.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Skewness", ylim = c(-5, 5))
+for(i in 1:50){
+  lines(warming.sims.sk.15[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+
+# Kurtosis
+max(constant.sims.kt.15, na.rm = TRUE); max(warming.sims.kt.15, na.rm = TRUE)
+min(constant.sims.kt.15, na.rm = TRUE); min(warming.sims.kt.15, na.rm = TRUE)
+plot(constant.sims.kt.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Kurtosis", ylim = c(0, 15))
+for(i in 1:50){
+  lines(constant.sims.kt.15[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.kt.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Kurtosis", ylim = c(0, 15))
+for(i in 1:50){
+  lines(warming.sims.kt.15[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **Variance**
+
+**Given by** ${SD}^2$**.**
+
+```{r}
+constant.sims.var.15 <- constant.sims.sd.15*constant.sims.sd.15
+warming.sims.var.15 <- warming.sims.sd.15*warming.sims.sd.15
+
+max(constant.sims.var.15); max(warming.sims.var.15)
+min(constant.sims.var.15); min(warming.sims.var.15)
+
+plot(constant.sims.var.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Variance", ylim = c(0, 40))
+for(i in 1:200){
+  lines(constant.sims.var.15[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.var.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Variance", ylim = c(0, 300))
+for(i in 1:200){
+  lines(warming.sims.var.15[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **Co-Efficient of Variation**
+
+**Given by** $SD/\mu$**.**
+
+```{r}
+constant.sims.cv.15 <- constant.sims.sd.15/constant.sims.mean.15
+warming.sims.cv.15 <- warming.sims.sd.15/warming.sims.mean.15
+
+max(constant.sims.cv.15); max(warming.sims.cv.15)
+min(constant.sims.cv.15); min(warming.sims.cv.15)
+
+plot(constant.sims.cv.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Co-Efficient of Variance", ylim = c(0, 1))
+for(i in 1:200){
+  lines(constant.sims.cv.15[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.cv.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Co-Efficient of Variance", ylim = c(0, 1))
+for(i in 1:200){
+  lines(warming.sims.cv.15[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **Index of Dispersion**
+
+**Given by** $\sigma/\mu$**.**
+
+```{r}
+constant.sims.id.15 <- constant.sims.var.15/constant.sims.mean.15
+warming.sims.id.15 <- warming.sims.var.15/warming.sims.mean.15
+
+max(constant.sims.id.15); max(warming.sims.id.15)
+min(constant.sims.id.15); min(warming.sims.id.15)
+
+plot(constant.sims.id.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Co-Efficient of Variance", ylim = c(0, 5))
+for(i in 1:200){
+  lines(constant.sims.id.15[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.id.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Co-Efficient of Variance", ylim = c(0, 5))
+for(i in 1:200){
+  lines(warming.sims.id.15[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **First Difference Variance**
+
+**Given by** $\sigma_{t} - \sigma_{t-1}$**. Note that the output will be one index shorter than the rest of the metrics.**
+
+```{r}
+constant.sims.fdv.15 <- matrix(ncol = num.of.sims, nrow = 105)
+warming.sims.fdv.15 <- matrix(ncol = num.of.sims, nrow = 105)
+
+for(i in 1:num.of.sims){
+  for(j in 2:105){
+    constant.sims.fdv.15[j - 1,i] <- constant.sims.var.15[j,i] - constant.sims.var.15[j - 1,i]
+    warming.sims.fdv.15[j - 1,i] <- warming.sims.var.15[j,i] - warming.sims.var.15[j - 1,i]
+  }
+}
+
+# Get rid of NA (last) row
+constant.sims.fdv.15 <- constant.sims.fdv.15[1:104, ]
+warming.sims.fdv.15 <- warming.sims.fdv.15[1:104, ]
+
+max(constant.sims.fdv.15); max(warming.sims.fdv.15)
+min(constant.sims.fdv.15); min(warming.sims.fdv.15)
+
+plot(constant.sims.fdv.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "First Difference Variance", ylim = c(-10, 10))
+for(i in 1:200){
+  lines(constant.sims.fdv.15[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.fdv.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "First Difference Variance", ylim = c(-30, 60))
+for(i in 1:200){
+  lines(warming.sims.fdv.15[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **Autocorrelation and Autocovariance**
+
+**Since `SlidingWindow` doesn't calculate metrics to include the last index, we'll do this manually.**
+
+**`acf`: Computes (and by default plots) estimates of the autocorrelation or autocovariance function.**
+
+**Using `acf(segment)[[1]][2]` pulls out the lag-1 autocorrelation/autocovariance functions.**
+
+```{r}
+constant.sims.ac.15 <- matrix(ncol = num.of.sims, nrow = 120)
+constant.sims.acv.15 <- matrix(ncol = num.of.sims, nrow = 120)
+
+for(j in 1:num.of.sims){
+  for(i in 1:105){
+    window.start <- i
+    window.end <- i + 14
+    
+    segment <- constant.incidence.daily[c(window.start:window.end),j]
+    
+    constant.sims.ac.15[i, j] <- acf(segment, plot = FALSE, type = "correlation")[[1]][2]
+    constant.sims.acv.15[i, j] <- acf(segment, plot = FALSE, type = "covariance")[[1]][2]
+  }
+}
+
+warming.sims.ac.15 <- matrix(ncol = num.of.sims,nrow = 120)
+warming.sims.acv.15 <- matrix(ncol = num.of.sims,nrow = 120)
+
+for(j in 1:num.of.sims){
+  for(i in 1:105){
+    window.start <- i
+    window.end <- i + 14
+    
+    segment <- warming.incidence.daily[c(window.start:window.end),j]
+    
+    warming.sims.ac.15[i, j] <- acf(segment, plot = FALSE, type = "correlation")[[1]][2]
+    warming.sims.acv.15[i, j] <- acf(segment, plot = FALSE, type = "covariance")[[1]][2]
+  }
+}
+
+max(constant.sims.ac.15, na.rm = TRUE); max(warming.sims.ac.15, na.rm = TRUE)
+min(constant.sims.ac.15, na.rm = TRUE); min(warming.sims.ac.15, na.rm = TRUE)
+
+plot(constant.sims.ac.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Autocorrelation", ylim = c(-1, 1))
+for(i in 1:100){
+  lines(constant.sims.ac.15[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.ac.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Autocorrelation", ylim = c(-1, 1))
+for(i in 1:100){
+  lines(warming.sims.ac.15[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+
+max(constant.sims.acv.15, na.rm = TRUE); max(warming.sims.acv.15, na.rm = TRUE)
+min(constant.sims.acv.15, na.rm = TRUE); min(warming.sims.acv.15, na.rm = TRUE)
+
+plot(constant.sims.acv.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Autocovariance", ylim = c(-1, 30))
+for(i in 1:200){
+  lines(constant.sims.acv.15[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.acv.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Autocovariance", ylim = c(-1, 250))
+for(i in 1:200){
+  lines(warming.sims.acv.15[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **Decay Time**
+
+**Given by** $-ts/ln(autocorrelation)$**.**
+
+```{r}
+constant.sims.dt.15 <- matrix(ncol = num.of.sims, nrow = 45)
+warming.sims.dt.15 <- matrix(nco = num.of.sims, nrow = 45)
+
+for(i in 1:num.of.sims){
+  for(j in 1:45){
+    suppressWarnings(constant.sims.dt.15[j, i] <- -j/log(constant.sims.ac.15[j, i]))
+    suppressWarnings(warming.sims.dt.15[j, i] <- -j/log(warming.sims.ac.15[j, i]))
+  }
+}
+
+max(constant.sims.dt.15, na.rm = TRUE); max(warming.sims.dt.15, na.rm = TRUE)
+min(constant.sims.dt.15, na.rm = TRUE); min(warming.sims.dt.15, na.rm = TRUE)
+
+plot(constant.sims.dt.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Decay Time", ylim = c(0, 420))
+for(i in 1:200){
+  lines(constant.sims.dt.15[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.dt.15[ ,1], type = "n",
+     main = "15 Day Sliding Window", xlab = "Time", ylab = "Decay Time", ylim = c(0, 400))
+for(i in 1:200){
+  lines(warming.sims.dt.15[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+## **30 Day Sliding Window**
+
+**Calculating:**
+
+1.  **Standard deviation**
+
+2.  **Mean**
+
+3.  **Skewness**
+
+4.  **Kurtosis**
+
+```{r}
+num.of.sims <- 10^3
+
+# Making empty matricies
+constant.sims.sd.30 <- matrix(nrow = 90, ncol = num.of.sims)
+constant.sims.mean.30 <- matrix(nrow = 90, ncol = num.of.sims)
+constant.sims.sk.30 <- matrix(nrow = 90, ncol = num.of.sims)
+constant.sims.kt.30 <- matrix(nrow = 90, ncol = num.of.sims)
+
+warming.sims.sd.30 <- matrix(nrow = 90, ncol = num.of.sims)
+warming.sims.mean.30 <- matrix(nrow = 90, ncol = num.of.sims)
+warming.sims.sk.30 <- matrix(nrow = 90, ncol = num.of.sims)
+warming.sims.kt.30 <- matrix(nrow = 90, ncol = num.of.sims)
+
+# Use SlidingWindow to calculate sd, mean, skewness, and kurtosis
+for(i in 1:num.of.sims){
+  constant.sims.sd.30[ ,i] <- SlidingWindow(FUN = "sd", data = constant.incidence.daily[ ,i], window = 30,step = 1)
+  constant.sims.mean.30[ ,i] <- SlidingWindow(FUN = "mean", data = constant.incidence.daily[ ,i], window = 30, step = 1)
+  constant.sims.sk.30[ ,i] <- SlidingWindow(FUN = "skewness", data = constant.incidence.daily[ ,i], window = 30, step = 1)
+  constant.sims.kt.30[ ,i] <- SlidingWindow(FUN = "kurtosis", data = constant.incidence.daily[ ,i], window = 30, step = 1)
+}
+
+for(i in 1:num.of.sims){
+  warming.sims.sd.30[ ,i] <- SlidingWindow(FUN = "sd", data = warming.incidence.daily[ ,i], window = 30,step = 1)
+  warming.sims.mean.30[ ,i] <- SlidingWindow(FUN = "mean", data = warming.incidence.daily[ ,i], window = 30, step = 1)
+  warming.sims.sk.30[ ,i] <- SlidingWindow(FUN = "skewness", data = warming.incidence.daily[ ,i], window = 30, step = 1)
+  warming.sims.kt.30[ ,i] <- SlidingWindow(FUN = "kurtosis", data = warming.incidence.daily[ ,i], window = 30, step = 1)
+}
+```
+
+**Let's do some plotting:**
+
+```{r}
+# Standard deviation
+max(constant.sims.sd.30); max(warming.sims.sd.30)
+plot(constant.sims.sd.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Standard Deviation", ylim = c(0, 25))
+for(i in 1:200){
+  lines(constant.sims.sd.30[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+  lines(warming.sims.sd.30[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+
+# Mean
+max(constant.sims.mean.30); max(warming.sims.mean.30)
+plot(constant.sims.mean.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Mean", ylim = c(0, 75))
+for(i in 1:200){
+  lines(constant.sims.mean.30[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+  lines(warming.sims.mean.30[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+
+# Skewness
+max(constant.sims.sk.30, na.rm = TRUE); max(warming.sims.sk.30, na.rm = TRUE)
+min(constant.sims.sk.30, na.rm = TRUE); min(warming.sims.sk.30, na.rm = TRUE)
+plot(constant.sims.sk.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Skewness", ylim = c(-3, 3))
+for(i in 1:50){
+  lines(constant.sims.sk.30[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.sk.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Skewness", ylim = c(-3, 3))
+for(i in 1:50){
+  lines(warming.sims.sk.30[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+
+# Kurtosis
+max(constant.sims.kt.30, na.rm = TRUE); max(warming.sims.kt.30, na.rm = TRUE)
+min(constant.sims.kt.30, na.rm = TRUE); min(warming.sims.kt.30, na.rm = TRUE)
+plot(constant.sims.kt.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Kurtosis", ylim = c(0, 12))
+for(i in 1:50){
+  lines(constant.sims.kt.30[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.kt.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Kurtosis", ylim = c(0, 12))
+for(i in 1:50){
+  lines(warming.sims.kt.30[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **Variance**
+
+**Given by** ${SD}^2$**.**
+
+```{r}
+constant.sims.var.30 <- constant.sims.sd.30*constant.sims.sd.30
+warming.sims.var.30 <- warming.sims.sd.30*warming.sims.sd.30
+
+max(constant.sims.var.30); max(warming.sims.var.30)
+min(constant.sims.var.30); min(warming.sims.var.30)
+
+plot(constant.sims.var.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Variance", ylim = c(0, 45))
+for(i in 1:200){
+  lines(constant.sims.var.30[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.var.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Variance", ylim = c(0, 450))
+for(i in 1:200){
+  lines(warming.sims.var.30[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **Co-Efficient of Variation**
+
+**Given by** $SD/\mu$**.**
+
+```{r}
+constant.sims.cv.30 <- constant.sims.sd.30/constant.sims.mean.30
+warming.sims.cv.30 <- warming.sims.sd.30/warming.sims.mean.30
+
+max(constant.sims.cv.30); max(warming.sims.cv.30)
+min(constant.sims.cv.30); min(warming.sims.cv.30)
+
+plot(constant.sims.cv.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Co-Efficient of Variance", ylim = c(0, 1))
+for(i in 1:200){
+  lines(constant.sims.cv.30[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.cv.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Co-Efficient of Variance", ylim = c(0, 1))
+for(i in 1:200){
+  lines(warming.sims.cv.30[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **Index of Dispersion**
+
+**Given by** $\sigma/\mu$**.**
+
+```{r}
+constant.sims.id.30 <- constant.sims.var.30/constant.sims.mean.30
+warming.sims.id.30 <- warming.sims.var.30/warming.sims.mean.30
+
+max(constant.sims.id.30); max(warming.sims.id.30)
+min(constant.sims.id.30); min(warming.sims.id.30)
+
+plot(constant.sims.id.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Co-Efficient of Variance", ylim = c(0, 5))
+for(i in 1:200){
+  lines(constant.sims.id.30[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.id.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Co-Efficient of Variance", ylim = c(0, 10))
+for(i in 1:200){
+  lines(warming.sims.id.30[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **First Difference Variance**
+
+**Given by** $\sigma_{t} - \sigma_{t-1}$**. Note that the output will be one index shorter than the rest of the metrics.**
+
+```{r}
+constant.sims.fdv.30 <- matrix(ncol = num.of.sims, nrow = 90)
+warming.sims.fdv.30 <- matrix(ncol = num.of.sims, nrow = 90)
+
+for(i in 1:num.of.sims){
+  for(j in 2:90){
+    constant.sims.fdv.30[j - 1,i] <- constant.sims.var.30[j,i] - constant.sims.var.30[j - 1,i]
+    warming.sims.fdv.30[j - 1,i] <- warming.sims.var.30[j,i] - warming.sims.var.30[j - 1,i]
+  }
+}
+
+# Get rid of NA (last) row
+constant.sims.fdv.30 <- constant.sims.fdv.30[1:89, ]
+warming.sims.fdv.30 <- warming.sims.fdv.30[1:89, ]
+
+max(constant.sims.fdv.30); max(warming.sims.fdv.30)
+min(constant.sims.fdv.30); min(warming.sims.fdv.30)
+
+plot(constant.sims.fdv.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "First Difference Variance", ylim = c(-5, 6))
+for(i in 1:200){
+  lines(constant.sims.fdv.30[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.fdv.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "First Difference Variance", ylim = c(-20, 60))
+for(i in 1:200){
+  lines(warming.sims.fdv.30[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **Autocorrelation and Autocovariance**
+
+**Since `SlidingWindow` doesn't calculate metrics to include the last index, we'll do this manually.**
+
+**`acf`: Computes (and by default plots) estimates of the autoacvariance or autocorrelation function.**
+
+**Using `acf(segment)[[1]][2]` pulls out the lag-1 autocorrelation/autoacvariance functions.**
+
+```{r}
+constant.sims.ac.30 <- matrix(ncol = num.of.sims, nrow = 120)
+constant.sims.acv.30 <- matrix(ncol = num.of.sims, nrow = 120)
+
+for(j in 1:num.of.sims){
+  for(i in 1:90){
+    window.start <- i
+    window.end <- i + 29
+    
+    segment <- constant.incidence.daily[c(window.start:window.end),j]
+    
+    constant.sims.ac.30[i, j] <- acf(segment, plot = FALSE, type = "correlation")[[1]][2]
+    constant.sims.acv.30[i, j] <- acf(segment, plot = FALSE, type = "covariance")[[1]][2]
+  }
+}
+
+warming.sims.ac.30 <- matrix(ncol = num.of.sims,nrow = 120)
+warming.sims.acv.30 <- matrix(ncol = num.of.sims,nrow = 120)
+
+for(j in 1:num.of.sims){
+  for(i in 1:90){
+    window.start <- i
+    window.end <- i + 29
+    
+    segment <- warming.incidence.daily[c(window.start:window.end),j]
+    
+    warming.sims.ac.30[i, j] <- acf(segment, plot = FALSE, type = "correlation")[[1]][2]
+    warming.sims.acv.30[i, j] <- acf(segment, plot = FALSE, type = "covariance")[[1]][2]
+  }
+}
+
+max(constant.sims.ac.30, na.rm = TRUE); max(warming.sims.ac.30, na.rm = TRUE)
+min(constant.sims.ac.30, na.rm = TRUE); min(warming.sims.ac.30, na.rm = TRUE)
+
+plot(constant.sims.ac.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Autocorrelation", ylim = c(-1, 1))
+for(i in 1:100){
+  lines(constant.sims.ac.30[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.ac.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Autocorrelation", ylim = c(-1, 1))
+for(i in 1:100){
+  lines(warming.sims.ac.30[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+
+max(constant.sims.acv.30, na.rm = TRUE); max(warming.sims.acv.30, na.rm = TRUE)
+min(constant.sims.acv.30, na.rm = TRUE); min(warming.sims.acv.30, na.rm = TRUE)
+
+plot(constant.sims.acv.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Autocovariance", ylim = c(-1, 40))
+for(i in 1:200){
+  lines(constant.sims.acv.30[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.acv.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Autocovariance", ylim = c(-1, 400))
+for(i in 1:200){
+  lines(warming.sims.acv.30[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+### **Decay Time**
+
+**Given by** $-ts/ln(autocorrelation)$**.**
+
+```{r}
+constant.sims.dt.30 <- matrix(ncol = num.of.sims, nrow = 30)
+warming.sims.dt.30 <- matrix(nco = num.of.sims, nrow = 30)
+
+for(i in 1:num.of.sims){
+  for(j in 1:30){
+    suppressWarnings(constant.sims.dt.30[j, i] <- -j/log(constant.sims.ac.30[j, i]))
+    suppressWarnings(warming.sims.dt.30[j, i] <- -j/log(warming.sims.ac.30[j, i]))
+  }
+}
+
+max(constant.sims.dt.30, na.rm = TRUE); max(warming.sims.dt.30, na.rm = TRUE)
+min(constant.sims.dt.30, na.rm = TRUE); min(warming.sims.dt.30, na.rm = TRUE)
+
+plot(constant.sims.dt.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Decay Time", ylim = c(0, 700))
+for(i in 1:200){
+  lines(constant.sims.dt.30[ ,i], col = alpha("cornflowerblue", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+plot(warming.sims.dt.30[ ,1], type = "n",
+     main = "30 Day Sliding Window", xlab = "Time", ylab = "Decay Time", ylim = c(0, 700))
+for(i in 1:200){
+  lines(warming.sims.dt.30[ ,i], col = alpha("red2", 0.2), lwd = 2)
+}
+abline(v = 60, col = "black", lwd = 2, lty = 2)
+```
+
+# **Kendall's Tau & Calculating AUC**
+
+**Area Under Curve (AUC) Tests**
+
+From Brett et al. 2018, *PLoS Computational Biology*:
+
+"We quantify the association of each EWS with time using Kendall's rank correlation coefficient. A coefficient close to (+/−)1 implies consistent increases/decreases of the EWS in time. As the underlying dynamics of the case reports are stochastic, the value of the rank correlation coefficient is itself a random variable. Multiple simulations of the test (emerging) and null (stationary/not emerging) scenarios result in two distributions of correlation coefficients for each EWS. We measure performance using the AUC statistic, defined as the overlap of the two distributions, and may be interpreted as the probability that a randomly chosen test coefficient is higher than a randomly chosen null coefficient, $AUC=P(\tau_{test}>\tau_{null})$... In this paper the **AUC statistic quantifies how successfully an EWS distinguishes whether or not a disease is approaching an epidemic transition. An AUC = 0.5 implies that an observed rank coefficient value conveys no information about whether or not the disease is emerging, i.e. the EWS is ineffective. If the AUC \< 0.5 then a decreasing trend in the EWS indicates emergence, whereas if AUC \> 0.5 an increasing trend indicates emergence. A larger \|AUC − 0.5\| implies better performance, if \|AUC − 0.5\| = 0.5 the rank coefficient value classifies the two scenarios perfectly.**"
+
+Where $\tau_{test}$ is a vector of Kendall tau values for the metric under warming/emerging conditions, and $\tau_{null}$ is a vector of Kendall tau values for the metric under constant/non-emerging conditions.
+
+Instead of explicitly calculating the ROC curve, the AUC can be efficiently calculated after ranking the combined set of test and null correlation coefficients by value, as follows:
+
+$AUC = \frac{r_{test}-\frac{n_{test}(n_{test}+1)}{2}} {n_{test}n_{null}}$
+
+Where $r_{test}$ is the sum of the ranks of test coefficients, and $n_{test}$ and $n_{null}$ are the number of realizations of the test and null models, respectively.
+
+So, here's the function Devin wrote to calculate the AUC:
+
+```{r}
+calc_auc <- function(test.taus, null.taus){
+  
+  combined.taus <- c(test.taus, null.taus)
+  r <- rank(combined.taus, na.last = NA)
+  
+  test.taus.length <- sum(!is.na(test.taus))
+  null.taus.length <- sum(!is.na(null.taus))
+  
+  r1 <- sum(r[1:test.taus.length])
+  
+  n1 <- test.taus.length
+  n2 <- null.taus.length
+  
+  (r1 - n1 * (n1 + 1) / 2) / (n1 * n2)
+}
+```
+
+As per Devin's script (and Brett et al. 2018, *PLoS Computational Biology*), to evaluate the predictive power of EWS, we should look at the relevant metrics before transition.
+
+For reference, metrics and their short hands are as follows:
+
+|                           |        |
+|---------------------------|--------|
+| Standard Deviation        | `sd`   |
+| Mean                      | `mean` |
+| Skew                      | `sk`   |
+| Kurtosis                  | `kt`   |
+| Variance                  | `var`  |
+| Co-Efficient of Variance  | `cv`   |
+| Index of Dispersion       | `id`   |
+| First Difference Variance | `fdv`  |
+| Autocorrelation           | `ac`   |
+| Autocovariance            | `acv`  |
+| Decay Time                | `dt`   |
+
+## 5 Day Sliding Window
+
+Cutting down all our statistical metric data frame to restrict our time frame to the first 55 days, and making some empty vectors to store our results in.
+
+```{r}
+constant.sims.var.5 <- constant.sims.var.5[1:55, ]
+constant.sims.mean.5 <- constant.sims.mean.5[1:55, ]
+constant.sims.cv.5 <- constant.sims.cv.5[1:55, ]
+constant.sims.sk.5 <- constant.sims.sk.5[1:55, ]
+constant.sims.kt.5 <- constant.sims.kt.5[1:55, ]
+constant.sims.id.5 <- constant.sims.id.5[1:55, ]
+constant.sims.ac.5 <- constant.sims.ac.5[1:55, ]
+constant.sims.acv.5 <- constant.sims.acv.5[1:55, ]
+constant.sims.fdv.5 <- constant.sims.fdv.5[1:55, ]
+constant.sims.dt.5 <- constant.sims.dt.5[1:55, ]
+
+warming.sims.var.5 <- warming.sims.var.5[1:55, ]
+warming.sims.mean.5 <- warming.sims.mean.5[1:55, ]
+warming.sims.cv.5 <- warming.sims.cv.5[1:55, ]
+warming.sims.sk.5 <- warming.sims.sk.5[1:55, ]
+warming.sims.kt.5 <- warming.sims.kt.5[1:55, ]
+warming.sims.id.5 <- warming.sims.id.5[1:55, ]
+warming.sims.ac.5 <- warming.sims.ac.5[1:55, ]
+warming.sims.acv.5 <- warming.sims.acv.5[1:55, ]
+warming.sims.fdv.5 <- warming.sims.fdv.5[1:55, ]
+warming.sims.dt.5 <- warming.sims.dt.5[1:55, ]
+
+constant.sims.var.5.tau <- c()
+constant.sims.mean.5.tau <- c()
+constant.sims.cv.5.tau <- c()
+constant.sims.sk.5.tau <- c()
+constant.sims.kt.5.tau <- c()
+constant.sims.id.5.tau <- c()
+constant.sims.ac.5.tau <- c()
+constant.sims.acv.5.tau <- c()
+constant.sims.fdv.5.tau <- c()
+constant.sims.dt.5.tau <- c()
+
+warming.sims.var.5.tau <- c()
+warming.sims.mean.5.tau <- c()
+warming.sims.cv.5.tau <- c()
+warming.sims.sk.5.tau <- c()
+warming.sims.kt.5.tau <- c()
+warming.sims.id.5.tau <- c()
+warming.sims.ac.5.tau <- c()
+warming.sims.acv.5.tau <- c()
+warming.sims.fdv.5.tau <- c()
+warming.sims.dt.5.tau <- c()
+```
+
+Calculate Kendall's tau for each metric:
+
+```{r}
+time.5 <- c(1:55)
+
+for(i in 1:num.of.sims){
+  constant.sims.mean.5.tau[i] <- cor(constant.sims.mean.5[ , i], time.5, method = "kendall")
+  constant.sims.sk.5.tau[i] <- cor(constant.sims.sk.5[ , i], time.5, method = "kendall")
+  constant.sims.kt.5.tau[i] <- cor(constant.sims.kt.5[ , i], time.5, method = "kendall")
+  constant.sims.var.5.tau[i] <- cor(constant.sims.var.5[ , i], time.5, method = "kendall")
+  constant.sims.cv.5.tau[i] <- cor(constant.sims.cv.5[ , i], time.5, method = "kendall")
+  constant.sims.id.5.tau[i] <- cor(constant.sims.id.5[ , i], time.5, method = "kendall")
+  constant.sims.fdv.5.tau[i] <- cor(constant.sims.fdv.5[ , i], time.5, method = "kendall")
+  constant.sims.ac.5.tau[i] <- cor(constant.sims.ac.5[ , i], time.5, method = "kendall")
+  constant.sims.acv.5.tau[i] <- cor(constant.sims.acv.5[ , i], time.5, method = "kendall")
+  constant.sims.dt.5.tau[i] <- cor(constant.sims.dt.5[ , i], time.5, method = "kendall")
+  
+  warming.sims.mean.5.tau[i] <- cor(warming.sims.mean.5[ , i], time.5, method = "kendall")
+  warming.sims.sk.5.tau[i] <- cor(warming.sims.sk.5[ , i], time.5, method = "kendall")
+  warming.sims.kt.5.tau[i] <- cor(warming.sims.kt.5[ , i], time.5, method = "kendall")
+  warming.sims.var.5.tau[i] <- cor(warming.sims.var.5[ , i], time.5, method = "kendall")
+  warming.sims.cv.5.tau[i] <- cor(warming.sims.cv.5[ , i], time.5, method = "kendall")
+  warming.sims.id.5.tau[i] <- cor(warming.sims.id.5[ , i], time.5, method = "kendall")
+  warming.sims.fdv.5.tau[i] <- cor(warming.sims.fdv.5[ , i], time.5, method = "kendall")
+  warming.sims.ac.5.tau[i] <- cor(warming.sims.ac.5[ , i], time.5, method = "kendall")
+  warming.sims.acv.5.tau[i] <- cor(warming.sims.acv.5[ , i], time.5, method = "kendall")
+  warming.sims.dt.5.tau[i] <- cor(warming.sims.dt.5[ , i], time.5, method = "kendall")
+}
+```
+
+Plot to compare Kendall tau distributions:
+
+```{r}
+par(mfrow = c(1, 1))
+
+hist(constant.sims.mean.5.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.mean.5.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.sk.5.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.sk.5.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.kt.5.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.kt.5.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.var.5.tau, col = alpha("cornflowerblue",  0.4), breaks = 20)
+hist(warming.sims.var.5.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.cv.5.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.cv.5.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.id.5.tau, col = alpha("cornflowerblue",0.4), breaks = 20)
+hist(warming.sims.id.5.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.fdv.5.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.fdv.5.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.ac.5.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.ac.5.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.acv.5.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.acv.5.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+# constant.sims.dt.5.tau and warming.sims.dt.5.tau are all NA
+# hist(constant.sims.dt.5.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+# hist(warming.sims.dt.5.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+```
+
+Calculating AUC:
+
+```{r}
+AUC_mean_5 <- calc_auc(warming.sims.mean.5.tau, constant.sims.mean.5.tau); AUC_mean_5
+AUC_sk_5 <- calc_auc(warming.sims.sk.5.tau, constant.sims.sk.5.tau); AUC_sk_5
+AUC_kt_5 <- calc_auc(warming.sims.kt.5.tau, constant.sims.kt.5.tau); AUC_kt_5
+AUC_var_5 <- calc_auc(warming.sims.var.5.tau, constant.sims.var.5.tau); AUC_var_5
+AUC_cv_5 <- calc_auc(warming.sims.cv.5.tau, constant.sims.cv.5.tau); AUC_cv_5
+AUC_id_5 <- calc_auc(warming.sims.id.5.tau, constant.sims.id.5.tau); AUC_id_5
+AUC_fdv_5 <- calc_auc(warming.sims.fdv.5.tau, constant.sims.fdv.5.tau); AUC_fdv_5
+AUC_ac_5 <- calc_auc(warming.sims.ac.5.tau, constant.sims.ac.5.tau); AUC_ac_5
+AUC_acv_5 <- calc_auc(warming.sims.acv.5.tau, constant.sims.acv.5.tau); AUC_acv_5
+AUC_dt_5 <- calc_auc(warming.sims.dt.5.tau, constant.sims.dt.5.tau); AUC_dt_5
+```
+
+## 15 Day Sliding Window
+
+Cutting down all our statistical metric data frame to restrict our time frame to the first 55 days, and making some empty vectors to store our results in.
+
+```{r}
+constant.sims.var.15 <- constant.sims.var.15[1:45, ]
+constant.sims.mean.15 <- constant.sims.mean.15[1:45, ]
+constant.sims.cv.15 <- constant.sims.cv.15[1:45, ]
+constant.sims.sk.15 <- constant.sims.sk.15[1:45, ]
+constant.sims.kt.15 <- constant.sims.kt.15[1:45, ]
+constant.sims.id.15 <- constant.sims.id.15[1:45, ]
+constant.sims.ac.15 <- constant.sims.ac.15[1:45, ]
+constant.sims.acv.15 <- constant.sims.acv.15[1:45, ]
+constant.sims.fdv.15 <- constant.sims.fdv.15[1:45, ]
+constant.sims.dt.15 <- constant.sims.dt.15[1:45, ]
+
+warming.sims.var.15 <- warming.sims.var.15[1:45, ]
+warming.sims.mean.15 <- warming.sims.mean.15[1:45, ]
+warming.sims.cv.15 <- warming.sims.cv.15[1:45, ]
+warming.sims.sk.15 <- warming.sims.sk.15[1:45, ]
+warming.sims.kt.15 <- warming.sims.kt.15[1:45, ]
+warming.sims.id.15 <- warming.sims.id.15[1:45, ]
+warming.sims.ac.15 <- warming.sims.ac.15[1:45, ]
+warming.sims.acv.15 <- warming.sims.acv.15[1:45, ]
+warming.sims.fdv.15 <- warming.sims.fdv.15[1:45, ]
+warming.sims.dt.15 <- warming.sims.dt.15[1:45, ]
+
+constant.sims.var.15.tau <- c()
+constant.sims.mean.15.tau <- c()
+constant.sims.cv.15.tau <- c()
+constant.sims.sk.15.tau <- c()
+constant.sims.kt.15.tau <- c()
+constant.sims.id.15.tau <- c()
+constant.sims.ac.15.tau <- c()
+constant.sims.acv.15.tau <- c()
+constant.sims.fdv.15.tau <- c()
+constant.sims.dt.15.tau <- c()
+
+warming.sims.var.15.tau <- c()
+warming.sims.mean.15.tau <- c()
+warming.sims.cv.15.tau <- c()
+warming.sims.sk.15.tau <- c()
+warming.sims.kt.15.tau <- c()
+warming.sims.id.15.tau <- c()
+warming.sims.ac.15.tau <- c()
+warming.sims.acv.15.tau <- c()
+warming.sims.fdv.15.tau <- c()
+warming.sims.dt.15.tau <- c()
+```
+
+Calculate Kendall's tau for each metric:
+
+```{r}
+time.15 <- c(1:45)
+
+for(i in 1:num.of.sims){
+  constant.sims.mean.15.tau[i] <- cor(constant.sims.mean.15[ , i], time.15, method = "kendall")
+  constant.sims.sk.15.tau[i] <- cor(constant.sims.sk.15[ , i], time.15, method = "kendall")
+  constant.sims.kt.15.tau[i] <- cor(constant.sims.kt.15[ , i], time.15, method = "kendall")
+  constant.sims.var.15.tau[i] <- cor(constant.sims.var.15[ , i], time.15, method = "kendall")
+  constant.sims.cv.15.tau[i] <- cor(constant.sims.cv.15[ , i], time.15, method = "kendall")
+  constant.sims.id.15.tau[i] <- cor(constant.sims.id.15[ , i], time.15, method = "kendall")
+  constant.sims.fdv.15.tau[i] <- cor(constant.sims.fdv.15[ , i], time.15, method = "kendall")
+  constant.sims.ac.15.tau[i] <- cor(constant.sims.ac.15[ , i], time.15, method = "kendall")
+  constant.sims.acv.15.tau[i] <- cor(constant.sims.acv.15[ , i], time.15, method = "kendall")
+  constant.sims.dt.15.tau[i] <- cor(constant.sims.dt.15[ , i], time.15, method = "kendall")
+  
+  warming.sims.mean.15.tau[i] <- cor(warming.sims.mean.15[ , i], time.15, method = "kendall")
+  warming.sims.sk.15.tau[i] <- cor(warming.sims.sk.15[ , i], time.15, method = "kendall")
+  warming.sims.kt.15.tau[i] <- cor(warming.sims.kt.15[ , i], time.15, method = "kendall")
+  warming.sims.var.15.tau[i] <- cor(warming.sims.var.15[ , i], time.15, method = "kendall")
+  warming.sims.cv.15.tau[i] <- cor(warming.sims.cv.15[ , i], time.15, method = "kendall")
+  warming.sims.id.15.tau[i] <- cor(warming.sims.id.15[ , i], time.15, method = "kendall")
+  warming.sims.fdv.15.tau[i] <- cor(warming.sims.fdv.15[ , i], time.15, method = "kendall")
+  warming.sims.ac.15.tau[i] <- cor(warming.sims.ac.15[ , i], time.15, method = "kendall")
+  warming.sims.acv.15.tau[i] <- cor(warming.sims.acv.15[ , i], time.15, method = "kendall")
+  warming.sims.dt.15.tau[i] <- cor(warming.sims.dt.15[ , i], time.15, method = "kendall")
+}
+```
+
+Plot to compare Kendall tau distributions:
+
+```{r}
+par(mfrow = c(1, 1))
+
+hist(constant.sims.mean.15.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.mean.15.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.sk.15.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.sk.15.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.kt.15.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.kt.15.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.var.15.tau, col = alpha("cornflowerblue",  0.4), breaks = 20)
+hist(warming.sims.var.15.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.cv.15.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.cv.15.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.id.15.tau, col = alpha("cornflowerblue",0.4), breaks = 20)
+hist(warming.sims.id.15.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.fdv.15.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.fdv.15.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.ac.15.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.ac.15.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.acv.15.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.acv.15.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+# constant.sims.dt.15.tau and warming.sims.dt.15.tau are all NA
+# hist(constant.sims.dt.15.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+# hist(warming.sims.dt.15.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+```
+
+Calculating AUC:
+
+```{r}
+AUC_mean_15 <- calc_auc(warming.sims.mean.15.tau, constant.sims.mean.15.tau); AUC_mean_15
+AUC_sk_15 <- calc_auc(warming.sims.sk.15.tau, constant.sims.sk.15.tau); AUC_sk_15
+AUC_kt_15 <- calc_auc(warming.sims.kt.15.tau, constant.sims.kt.15.tau); AUC_kt_15
+AUC_var_15 <- calc_auc(warming.sims.var.15.tau, constant.sims.var.15.tau); AUC_var_15
+AUC_cv_15 <- calc_auc(warming.sims.cv.15.tau, constant.sims.cv.15.tau); AUC_cv_15
+AUC_id_15 <- calc_auc(warming.sims.id.15.tau, constant.sims.id.15.tau); AUC_id_15
+AUC_fdv_15 <- calc_auc(warming.sims.fdv.15.tau, constant.sims.fdv.15.tau); AUC_fdv_15
+AUC_ac_15 <- calc_auc(warming.sims.ac.15.tau, constant.sims.ac.15.tau); AUC_ac_15
+AUC_acv_15 <- calc_auc(warming.sims.acv.15.tau, constant.sims.acv.15.tau); AUC_acv_15
+AUC_dt_15 <- calc_auc(warming.sims.dt.15.tau, constant.sims.dt.15.tau); AUC_dt_15
+```
+
+## 30 Day Sliding Window
+
+Cutting down all our statistical metric data frame to restrict our time frame to the first 55 days, and making some empty vectors to store our results in.
+
+```{r}
+constant.sims.var.30 <- constant.sims.var.30[1:30, ]
+constant.sims.mean.30 <- constant.sims.mean.30[1:30, ]
+constant.sims.cv.30 <- constant.sims.cv.30[1:30, ]
+constant.sims.sk.30 <- constant.sims.sk.30[1:30, ]
+constant.sims.kt.30 <- constant.sims.kt.30[1:30, ]
+constant.sims.id.30 <- constant.sims.id.30[1:30, ]
+constant.sims.ac.30 <- constant.sims.ac.30[1:30, ]
+constant.sims.acv.30 <- constant.sims.acv.30[1:30, ]
+constant.sims.fdv.30 <- constant.sims.fdv.30[1:30, ]
+constant.sims.dt.30 <- constant.sims.dt.30[1:30, ]
+
+warming.sims.var.30 <- warming.sims.var.30[1:30, ]
+warming.sims.mean.30 <- warming.sims.mean.30[1:30, ]
+warming.sims.cv.30 <- warming.sims.cv.30[1:30, ]
+warming.sims.sk.30 <- warming.sims.sk.30[1:30, ]
+warming.sims.kt.30 <- warming.sims.kt.30[1:30, ]
+warming.sims.id.30 <- warming.sims.id.30[1:30, ]
+warming.sims.ac.30 <- warming.sims.ac.30[1:30, ]
+warming.sims.acv.30 <- warming.sims.acv.30[1:30, ]
+warming.sims.fdv.30 <- warming.sims.fdv.30[1:30, ]
+warming.sims.dt.30 <- warming.sims.dt.30[1:30, ]
+
+constant.sims.var.30.tau <- c()
+constant.sims.mean.30.tau <- c()
+constant.sims.cv.30.tau <- c()
+constant.sims.sk.30.tau <- c()
+constant.sims.kt.30.tau <- c()
+constant.sims.id.30.tau <- c()
+constant.sims.ac.30.tau <- c()
+constant.sims.acv.30.tau <- c()
+constant.sims.fdv.30.tau <- c()
+constant.sims.dt.30.tau <- c()
+
+warming.sims.var.30.tau <- c()
+warming.sims.mean.30.tau <- c()
+warming.sims.cv.30.tau <- c()
+warming.sims.sk.30.tau <- c()
+warming.sims.kt.30.tau <- c()
+warming.sims.id.30.tau <- c()
+warming.sims.ac.30.tau <- c()
+warming.sims.acv.30.tau <- c()
+warming.sims.fdv.30.tau <- c()
+warming.sims.dt.30.tau <- c()
+```
+
+Calculate Kendall's tau for each metric:
+
+```{r}
+time.30 <- c(1:30)
+
+for(i in 1:num.of.sims){
+  constant.sims.mean.30.tau[i] <- cor(constant.sims.mean.30[ , i], time.30, method = "kendall")
+  constant.sims.sk.30.tau[i] <- cor(constant.sims.sk.30[ , i], time.30, method = "kendall")
+  constant.sims.kt.30.tau[i] <- cor(constant.sims.kt.30[ , i], time.30, method = "kendall")
+  constant.sims.var.30.tau[i] <- cor(constant.sims.var.30[ , i], time.30, method = "kendall")
+  constant.sims.cv.30.tau[i] <- cor(constant.sims.cv.30[ , i], time.30, method = "kendall")
+  constant.sims.id.30.tau[i] <- cor(constant.sims.id.30[ , i], time.30, method = "kendall")
+  constant.sims.fdv.30.tau[i] <- cor(constant.sims.fdv.30[ , i], time.30, method = "kendall")
+  constant.sims.ac.30.tau[i] <- cor(constant.sims.ac.30[ , i], time.30, method = "kendall")
+  constant.sims.acv.30.tau[i] <- cor(constant.sims.acv.30[ , i], time.30, method = "kendall")
+  constant.sims.dt.30.tau[i] <- cor(constant.sims.dt.30[ , i], time.30, method = "kendall")
+  
+  warming.sims.mean.30.tau[i] <- cor(warming.sims.mean.30[ , i], time.30, method = "kendall")
+  warming.sims.sk.30.tau[i] <- cor(warming.sims.sk.30[ , i], time.30, method = "kendall")
+  warming.sims.kt.30.tau[i] <- cor(warming.sims.kt.30[ , i], time.30, method = "kendall")
+  warming.sims.var.30.tau[i] <- cor(warming.sims.var.30[ , i], time.30, method = "kendall")
+  warming.sims.cv.30.tau[i] <- cor(warming.sims.cv.30[ , i], time.30, method = "kendall")
+  warming.sims.id.30.tau[i] <- cor(warming.sims.id.30[ , i], time.30, method = "kendall")
+  warming.sims.fdv.30.tau[i] <- cor(warming.sims.fdv.30[ , i], time.30, method = "kendall")
+  warming.sims.ac.30.tau[i] <- cor(warming.sims.ac.30[ , i], time.30, method = "kendall")
+  warming.sims.acv.30.tau[i] <- cor(warming.sims.acv.30[ , i], time.30, method = "kendall")
+  warming.sims.dt.30.tau[i] <- cor(warming.sims.dt.30[ , i], time.30, method = "kendall")
+}
+```
+
+Plot to compare Kendall tau distributions:
+
+```{r}
+par(mfrow = c(1, 1))
+
+hist(constant.sims.mean.30.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.mean.30.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.sk.30.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.sk.30.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.kt.30.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.kt.30.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.var.30.tau, col = alpha("cornflowerblue",  0.4), breaks = 20)
+hist(warming.sims.var.30.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.cv.30.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.cv.30.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.id.30.tau, col = alpha("cornflowerblue",0.4), breaks = 20)
+hist(warming.sims.id.30.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.fdv.30.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.fdv.30.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.ac.30.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.ac.30.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+hist(constant.sims.acv.30.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+hist(warming.sims.acv.30.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+
+# constant.sims.dt.30.tau and warming.sims.dt.30.tau are all NA
+# hist(constant.sims.dt.30.tau, col = alpha("cornflowerblue", 0.4), breaks = 20)
+# hist(warming.sims.dt.30.tau, col = alpha("red2", 0.4), breaks = 20, add = T)
+```
+
+Calculating AUC:
+
+```{r}
+AUC_mean_30 <- calc_auc(warming.sims.mean.30.tau, constant.sims.mean.30.tau); AUC_mean_30
+AUC_sk_30 <- calc_auc(warming.sims.sk.30.tau, constant.sims.sk.30.tau); AUC_sk_30
+AUC_kt_30 <- calc_auc(warming.sims.kt.30.tau, constant.sims.kt.30.tau); AUC_kt_30
+AUC_var_30 <- calc_auc(warming.sims.var.30.tau, constant.sims.var.30.tau); AUC_var_30
+AUC_cv_30 <- calc_auc(warming.sims.cv.30.tau, constant.sims.cv.30.tau); AUC_cv_30
+AUC_id_30 <- calc_auc(warming.sims.id.30.tau, constant.sims.id.30.tau); AUC_id_30
+AUC_fdv_30 <- calc_auc(warming.sims.fdv.30.tau, constant.sims.fdv.30.tau); AUC_fdv_30
+AUC_ac_30 <- calc_auc(warming.sims.ac.30.tau, constant.sims.ac.30.tau); AUC_ac_30
+AUC_acv_30 <- calc_auc(warming.sims.acv.30.tau, constant.sims.acv.30.tau); AUC_acv_30
+AUC_dt_30 <- calc_auc(warming.sims.dt.30.tau, constant.sims.dt.30.tau); AUC_dt_30
+```
+
+## Summarize Outputs
+
+```{r}
+metrics <- c("mean", "skewness", "kurtosis", "variance", "cv", "id", "fdv", "cor", "acv", "dt")
+
+AUC_5 <- c(AUC_mean_5, AUC_sk_5, AUC_kt_5, AUC_var_5, AUC_cv_5, 
+           AUC_id_5, AUC_fdv_5, AUC_ac_5 ,AUC_acv_5, AUC_dt_5)
+AUC_15 <- c(AUC_mean_15, AUC_sk_15, AUC_kt_15, AUC_var_15, AUC_cv_15, 
+           AUC_id_15, AUC_fdv_15, AUC_ac_15 ,AUC_acv_15, AUC_dt_15)
+AUC_30 <- c(AUC_mean_30, AUC_sk_30, AUC_kt_30, AUC_var_30, AUC_cv_30, 
+           AUC_id_30, AUC_fdv_30, AUC_ac_30 ,AUC_acv_30, AUC_dt_30)
+AUC_df <- data.frame(metrics, AUC_5, AUC_15, AUC_30); AUC_df
+saveRDS(AUC_df, "Objects/AUC_SimulatedData.rds")
+```
+
+Let's make a quick plot:
+
+```{r}
+metrics_full <- c("Mean", "Skewness", "Kurtosis", "Variance", "acvariance", "Index of Dispersion", "First Difference Variance", "Autocorrelation", "Autocovariance", "Decay Time")
+
+## Plot 
+plot(1:10, AUC_df$AUC_5, type = "p", 
+     main = "Simulated Data", xaxt = "none", xlab = "", ylim = c(0, 1), ylab = "AUC",
+     col = "forestgreen", pch = 19)
+points(1:10, AUC_df$AUC_15, col = "orchid", pch = 19)
+points(1:10, AUC_df$AUC_30, col = "#4B0082", pch = 19)
+abline(h = 0.5, lty = 3)
+axis(side = 1, at = 1:10, labels = metrics_full, las = 2)
+legend("bottomright", 
+       legend = c("Sliding Window = 5 Days", "Sliding Window = 15 Days", "Sliding Window = 30 Days"),
+       col = c("forestgreen", "orchid", "#4B0082"), pch = 19)
+
+## Saving plot as .png
+png(file = "Plots/AUC_SimulatedData.png", width = 1500, height = 350)
+plot(1:10, AUC_df$AUC_5, type = "p", 
+     main = "Simulated Data", xaxt = "none", xlab = "", ylim = c(0, 1), ylab = "AUC",
+     col = "forestgreen", pch = 19)
+points(1:10, AUC_df$AUC_15, col = "orchid", pch = 19)
+points(1:10, AUC_df$AUC_30, col = "#4B0082", pch = 19)
+abline(h = 0.5, lty = 3)
+axis(side = 1, at = 1:10, labels = metrics_full)
+legend("bottomright", 
+       legend = c("Sliding Window = 5 Days", "Sliding Window = 15 Days", "Sliding Window = 30 Days"),
+       col = c("forestgreen", "orchid", "#4B0082"), pch = 19)
+dev.off()
+```

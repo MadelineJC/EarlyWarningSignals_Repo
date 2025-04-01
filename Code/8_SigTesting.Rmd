@@ -1,0 +1,3000 @@
+# Significance Testing
+
+## Required Packages
+
+```{r, include = FALSE}
+require(scales)
+require(evobiR)
+require(gdata)
+require(doBy)
+require(ecp)
+require(strucchange)
+require(TTR)
+require(moments)
+require(tidyverse)
+require(earlywarnings)
+library(ggridges)
+library(bayesplot)
+library(ggplot2)
+library(rstan)
+library(cowplot)
+```
+
+# Literature
+
+We want to quantify our confidence in these metrics/trends.
+
+There are a number of ways to do that:
+
+1.  **Permutation Approach (Harris et al. 2020):**
+    -   "We used the following permutation approach to assess the significance of the estimated correlations. We first **generated 10 000 permutations of case incidence during the approach to criticality (December 1981 to April 1993)**, thus **preserving the general features of the original data (e.g. amplitudes of fluctuations) while eliminating underlying patterns of serial dependence**. We then **performed rolling window analyses on the permuted data to generate a null distribution of correlation coefficients for each indicator. The false positive rates of the 10 tests were estimated by finding the proportion of these permutations with a value for more extreme than that calculated for the Kericho data**. The resulting p-values quantify the reliability of their corresponding statistics as early warning signals."
+2.  **Non-Parametric Test: The Modified Mann-Kendall Test (Hamed and Rao 1998; Chen et al. 2022):**
+    -   "The non-parametric Mann--Kendall test is commonly employed to detect monotonic trends in time series. The null hypothesis for the traditional Mann--Kendall trend test (equation (2.3)), however, is that the data are independent, randomly ordered, without serial correlation structure among the observations. However, in many real situations, the observed data are autocorrelated, which can result in misinterpretation of trend test results. In particular, in the context of early warning signals, this null hypothesis is not rigorously obeyed for the series of statistics such as the standard deviation or the autocorrelation that are obtained from a time series using a moving window." Hamed and Rao (1998) point out that a modified Mann--Kendall trend test can be used to study data with a serial correlation structure. **In the modified test, the null hypothesis is that there is no trend in the data, but there can be autocorrelation**, addressing the challenge existing in the studies of early warning signals. **If the null hypothesis is true, Kendall's** $\tau$ shou**ld follow a normal distribution with mean 0, and variance given by Hamed and Rao (1998) (see Equation 3.1 in Chen et al. 2022)**.\
+        "For each time series, we calculated the variance as the early warning signal using a moving window. The window size and number of observations are varied and the values of Kendall's $\tau$ are then calculated for each set of obtained warning signals. The distribution of Kendall's $\tau$ obtained using the generated time series is shown in figure 5 revealing that the real distribution is much flatter than the normal distribution due to the positive correlation in data. Next, a single time series is used to calculate the varience of the normal distribution obtained by the modified Mann Kendall test (i.e. equation (3.1)). Results shown in figure 5 show that the modified distribution is much closer to the real distribution. **In practice, one may typically only have one time series. Therefore, the real distribution is not available. In this case, we can use the available time series to calculate the modified distribution of Kendall's** $\tau$, and **use the distribution to calculate the percentile of the obtained Kendall's** $\tau$ **value.**"
+3.  **Parametric Test: Generating a Null Case w/ an ARMA (Dakos et al. 2012; Chen et al. 2022):**
+    -   "These methods use a general model to fit the data, and **generate artificial data using the model to understand how significant the trend statistic value is**. Dakos et al. (2012) proposed to **fit an autoregressive, moving-average model (ARMA) using the residual data after detrending**. This test is **designed to show that the data cannot come from a linear stationary process if a large Kendall's** $\tau$ **value is obtained from it**. When this test gives a p-value as low as 0.1%, that does not mean that the probability of critical transition is as high as 99.9%. It means that the probability that this time-series data is generated using a linear stationary model is as low as 0.1%."
+
+What else does the literature say?
+
+-   **Review Papers:**
+
+    -   **Chen et al 2022:** *SEE ABOVE.*
+
+    -   **Southall et al. 2021:** "Another method that uses bootstrapped samples to estimate the statistical significance of an observed Kendall's $\tau$ statistic has proven popular in the literature (Carpenter et al. 2011; Dakos et al. 2008; Boettiger and Hastings 2012; Pimiento and Clements 2014; Kefi et al. 2014; Dakos et al. 2012) but also controversial (Dakos et al. 2008; Boettiger and Hastings 2012; Dakos et al. 2012). An empirical study tested if EWSs could indicate malaria resurgence in a historical data- set from Kericho, Kenya (Harris et al. 2020); using bootstrapping with Kendall's $\tau$ score over increasing amounts of data to calculate the p-value of the score over time. Evidence of CSD was said to be detected when the p-value became significant at 0.05. Under this framework, the resurgence of malaria was pre- dicted with a 24-month lead time with autocorrelation lag-1 and a six-month lead time with variance. However, this method has not been tested on time-series data which are not going through a critical transition, i.e. the method's specificity remains unknown."
+
+-   **Harris et al. 2020:** *SEE ABOVE.*
+
+-   **Dakos et al. 2008:** Assessed significance in three ways: "For each time series we tested the likelihood of obtaining our computed trend statistics (Kendall's $\tau$ rank correlation) by chance by using 1,000 surrogate time series of the same length as the filtered simulated and real data in three different ways. **First,** **we bootstrapped our datasets by shuffling the original residual time series and picking data with replacement to generate surrogate records of similar distribution (mean and variance)**. **Second, we produced a surrogate time series that had the same Fourier spectrum and amplitudes as the original sets (Theiler et al. 1992).** **Last, we created surrogate datasets produced by an autoregressive model of order 1 with the same variance, mean and autocorrelation at lag 1 with the residuals time series starting from the same initial value as in the original series** (Theiler et al. 1992). For each surrogate set, we computed the trend detection statistic. We then calculated the probability that our estimates of the trend statistic would be observed by chance as the fraction of the 1,000 surrogate series scoring the same value or a higher one."
+
+    -   **Bootstrapped Surrogate Data Sets w/ Same MEAN, and VARIANCE:** "We bootstrapped our datasets by reshuffling the order of the detrended original time series and by picking data with replacement to generate surrogate records of similar probability distribution (mean and variance) (Efron and Tibshirani 1986)."
+
+    -   **Surrogate Data Sets w/ Same FOURIER SPECTRUM and AMPLITUDES:** "We produced surrogate time series with the same autocorrelations and the same probability distribution as the data, to test against the H0 hypothesis that our datasets are a realization of a Gaussian linear stochastic process (Schreiber and Schmitz 1996; Schreiber and Schmitz 2000). We did this by replicating data of the same Fourier spectrum and amplitudes as of the original set using the MATLAB function generate_iAAFT (Gautama et al. 2004)."
+
+    -   **Surrogate Data Sets Generated w/ ARMA Model w/ Same MEAN, VARIANCE, and AUTOCORRELATION:** "To test against the H0 hypothesis that the data are produced by a colored-noise process with similar variance, mean, and autocorrelation at lag 1 with the original detrended time series (Theiler et al. 1992), we generated surrogate sets by an AR1 model $x_{t+1} = \alpha_1 x_t + \alpha_0 + \sigma \epsilon_t$, where $\alpha_1 = A(1), \sigma^2 = v(1-\alpha_1^2)$, $\alpha_0 = \mu(1-\alpha_1)$, with $v$ the variance, $\mu$ the mean, $A(1)$ the autocorrelation at lag 1 from the residual time series (estimated by using function `acf` as implemented in R), and $\sigma$ a scaling factor for the Gaussian random error $\epsilon_t$.
+
+    -   "We estimated the probability that our estimates of the trend statistic would be observed by chance as the fraction of the 1,000 surrogate series scoring the same value or a higher one. Specifically for the Kendall $\tau$, we estimated this probability as the number of cases in which the statistic was equal to or higher than the estimate of the original record, $P(\tau \geqslant \tau^*)$. We also estimated the combined probability for observing the trend statistic estimate in each the H0 hypotheses test by chance. For this, we used the Fisher's combined probability test (Sokal and Rohlf 1995) to estimate the $X^2$ statistic, given by:\
+        $$X_{2k}^2 = -2 \sum_{i=1}^k ln(p_i)$$\
+        where $k$ is the amount of tests (here, $k=8$) and $P$ is the probability estimated for each hypotheses test. The combined probability for the $X^2$ statistic was given by a $\chi^2$ distribution with $2k$ degrees of freedom."
+
+-   **Delecroix et al. 2022:** "When a trend is observed, its significance needs to be assessed. Due to the sliding window approach, standard statistical tests are not applicable as the observations are not independent. A proposed approach to assess the significance of the trend is to produce surrogate datasets to compare the trend estimates (Dakos et al. 2012). Several methods to produce consistent surrogate datasets have been proposed and implemented in the resilience indicators packages (Dakos's R Package"Earlywarnings" (2015))."
+
+-   **Gsell et al. 2016:** "We also tested for the significance of the trends by estimating the rate of false positives using simulated surrogate time series... Our significance testing relied on estimating EWI trends in surrogate stationary data fitted to the original time series to determine the rate of false positives. Unfortunately, we lacked records to serve as controls when comparing trends from comparable aquatic systems in which no transition occurred to estimate the rate of true negatives (no alarm, or sensitivity) of the EWIs. Given the lack of such controls, one potential way to measure the no alarm rate is to derive trends from nonstationary models fitted to the data (Livina et al. 2012). In future work, it would be valuable to compare trends in EWI in study systems that did not exhibit any changes or in which changes were brought about by large external shifts in drivers."
+
+-   **Dablander et al. 2022:** "**To create a sampling distribution under the null hypothesis of no increase in the early warning indicators that respects the temporal ordering of the data, we fitted a series of ARMA(p, q) models** with (p, q) ∈ [1, 2, ... 5] to the country-specific data. We selected the best-fitting model using AIC and subsequently **generated 500 surrogate time series from it, computed the early warning indicators as outlined above, and estimated the rank correlation of the indicator values st with time t, known as Kendall's** $\tau$**. This resulted in the sampling distribution under the null assumption 3 of stationarity, which allowed us to test the actually observed Kendall's** $\tau$ **against a significance level α**. This approach is the most widely used approach when estimating and testing early warning indicators using rolling windows (Dakos et al. 2012).
+
+-   **Dakos et al. 2012:** "Here, we suggest that the simplest null hypothesis one could imagine is that the trend estimates of the indicators are due to chance alone. To test this null hypothesis, we produced surrogate datasets to compare trend estimates in the original record with trend estimates obtained from records that have the same correlation structure and probability distribution as the original dataset, but that were produced by linear stationary processes (Dakos et al. 2008). **Surrogate datasets can be obtained by different approaches, including generating data with the same Fourier spectrum and amplitudes (Dakos et al. 2008; Theiler et al. 1992), or generating data from the simplest fitted linear first-order autoregressive model**. Although these are only some of the ways surrogate data can be produced to test for trends (Halley and Kugiumtzis 2011), we used here a more general approach. **We fit the best linear autoregressive moving average model (ARMA(p,q)) based on AIC to residuals (after detrending/filtering), then generated 1,000 simulated datasets of the same length as the residual time series. For each simulated dataset, we estimated the trend of the rolling window metric (in particular we only tested for autocorrelation at-lag-1, standard deviation, and skewness) using Kendall's** $\tau$**. We compared the Kendall** $\tau$ of the original data **to the number of cases in which the statistic was equal to or smaller than the estimates of the simulated records, P (**$\tau^* \geqslant \tau$**)**. We estimated this probability for all combinations of bandwidth and rolling window size as we did for the sensitivity analysis."
+
+# (1) Resampling Time Series
+
+From Harris et al. (2020):
+
+```{r}
+kericho <- read.csv("/Users/mjarviscross/Desktop/Thesis_Lit/Chapter 3 Lit/Reference_Code/Harris et al. (2020)/kericho.csv")
+
+# Approach to criticality
+test <- kericho$BBK[204:340] # 137 of 455 observations; in our case, we restrict to the first 55 days (emergence at ~60)
+
+# Generate 10,000 null permutations
+obs <- list(length = 10001)
+obs[[10001]] <- test # Original
+  
+set.seed(10022016) 
+for (i in 1:10000){
+  obs[[i]] <- sample(test, length(test), replace = FALSE)
+} 
+
+plot(obs[[1]], type = "l", col = "black",
+     xlab = "Time", ylab = "Incidence")
+lines(obs[[2]], col = "green")
+lines(obs[[3]], col = "purple")
+```
+
+## Data Wrangling
+
+Okay, now, let's do it with Devin's empirical data:
+
+```{r}
+data <- read.csv("Kirk_Data/Epidemics_Data_Dryad/Kirk_et_al_epidemics_sampling_data.csv")
+
+sub1 <- subset(data.sum, population == 1)
+sub2 <- subset(data.sum, population == 2)
+sub3 <- subset(data.sum, population == 3)
+sub4 <- subset(data.sum, population == 4)
+sub5 <- subset(data.sum, population == 5)
+sub6 <- subset(data.sum, population == 6)
+sub7 <- subset(data.sum, population == 7)
+sub8 <- subset(data.sum, population == 8)
+
+sub1 <- sub1$status.sum
+sub2 <- sub2$status.sum
+sub3 <- sub3$status.sum
+sub4 <- sub4$status.sum
+sub5 <- sub5$status.sum
+sub6 <- sub6$status.sum
+sub7 <- sub7$status.sum
+sub8 <- sub8$status.sum
+
+# Observation 20 is Day 60, so let's cut it off there
+sub1.crit <- sub1[1:20]
+sub2.crit <- sub2[1:20]
+sub3.crit <- sub3[1:20]
+sub4.crit <- sub4[1:20]
+sub5.crit <- sub5[1:20]
+sub6.crit <- sub6[1:20]
+sub7.crit <- sub7[1:20]
+sub8.crit <- sub8[1:20]
+
+sub1.null <- list()
+sub2.null <- list()
+sub3.null <- list()
+sub4.null <- list()
+sub5.null <- list()
+sub6.null <- list()
+sub7.null <- list()
+sub8.null <- list()
+
+set.seed(123) 
+for (i in 1:1000){
+  sub1.null[[i]] <- sample(sub1.crit, length(sub1.crit), replace = TRUE)
+  sub2.null[[i]] <- sample(sub2.crit, length(sub2.crit), replace = TRUE)
+  sub3.null[[i]] <- sample(sub3.crit, length(sub3.crit), replace = TRUE)
+  sub4.null[[i]] <- sample(sub4.crit, length(sub4.crit), replace = TRUE)
+  sub5.null[[i]] <- sample(sub5.crit, length(sub5.crit), replace = TRUE)
+  sub6.null[[i]] <- sample(sub6.crit, length(sub6.crit), replace = TRUE)
+  sub7.null[[i]] <- sample(sub7.crit, length(sub7.crit), replace = TRUE)
+  sub8.null[[i]] <- sample(sub8.crit, length(sub8.crit), replace = TRUE)
+} 
+
+plot(sub4.null[[1]], type = "l", col = "red3",
+     main = "Subpopulation 4", xlab = "Time", ylab = "Incidence")
+lines(sub4.null[[2]], col = "orange")
+lines(sub4.null[[3]], col = "goldenrod1")
+lines(sub4.null[[4]], col = "forestgreen")
+lines(sub4.null[[5]], col = "cornflowerblue")
+lines(sub4.crit, lwd = 2)
+
+plot(sub8.null[[1]], type = "l", col = "red3",
+     main = "Subpopulation 8", xlab = "Time", ylab = "Incidence")
+lines(sub8.null[[2]], col = "orange")
+lines(sub8.null[[3]], col = "goldenrod1")
+lines(sub8.null[[4]], col = "forestgreen")
+lines(sub8.null[[5]], col = "cornflowerblue")
+lines(sub8.crit, lwd = 2)
+```
+
+## Calculating Metrics
+
+### Mean, Standard Deviation
+
+```{r}
+sub1.null.mean <- list(); sub1.null.sd <- list()
+sub2.null.mean <- list(); sub2.null.sd <- list()
+sub3.null.mean <- list(); sub3.null.sd <- list()
+sub4.null.mean <- list(); sub4.null.sd <- list()
+sub5.null.mean <- list(); sub5.null.sd <- list()
+sub6.null.mean <- list(); sub6.null.sd <- list()
+sub7.null.mean <- list(); sub7.null.sd <- list()
+sub8.null.mean <- list(); sub8.null.sd <- list()
+
+for (i in 1:length(sub1.null)){
+  sub1.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub1.null[[i]], window = 5, step = 1)
+  sub1.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub1.null[[i]], window = 5, step = 1)
+  
+  sub2.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub2.null[[i]], window = 5, step = 1)
+  sub2.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub2.null[[i]], window = 5, step = 1)
+  
+  sub3.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub3.null[[i]], window = 5, step = 1)
+  sub3.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub3.null[[i]], window = 5, step = 1)
+  
+  sub4.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub4.null[[i]], window = 5, step = 1)
+  sub4.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub4.null[[i]], window = 5, step = 1)
+  
+  sub5.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub5.null[[i]], window = 5, step = 1)
+  sub5.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub5.null[[i]], window = 5, step = 1)
+  
+  sub6.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub6.null[[i]], window = 5, step = 1)
+  sub6.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub6.null[[i]], window = 5, step = 1)
+  
+  sub7.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub7.null[[i]], window = 5, step = 1)
+  sub7.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub7.null[[i]], window = 5, step = 1)
+  
+  sub8.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub8.null[[i]], window = 5, step = 1)
+  sub8.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub8.null[[i]], window = 5, step = 1)
+}
+```
+
+### Variance
+
+```{r}
+sub1.null.var <- list(); sub2.null.var <- list(); sub3.null.var <- list(); sub4.null.var <- list()
+sub5.null.var <- list(); sub6.null.var <- list(); sub7.null.var <- list(); sub8.null.var <- list()
+for (i in 1:1000){
+  sub1.null.var[[i]] <- sub1.null.sd[[i]]^2
+  sub2.null.var[[i]] <- sub2.null.sd[[i]]^2
+  sub3.null.var[[i]] <- sub3.null.sd[[i]]^2
+  sub4.null.var[[i]] <- sub4.null.sd[[i]]^2
+  sub5.null.var[[i]] <- sub5.null.sd[[i]]^2
+  sub6.null.var[[i]] <- sub6.null.sd[[i]]^2
+  sub7.null.var[[i]] <- sub7.null.sd[[i]]^2
+  sub8.null.var[[i]] <- sub8.null.sd[[i]]^2
+}
+```
+
+### Index of Dispersion
+
+```{r}
+sub1.null.id <- list(); sub2.null.id <- list(); sub3.null.id <- list(); sub4.null.id <- list()
+sub5.null.id <- list(); sub6.null.id <- list(); sub7.null.id <- list(); sub8.null.id <- list()
+for (i in 1:1000){
+  sub1.null.id[[i]] <- sub1.null.var[[i]]/(sub1.null.mean[[i]] + 1e-10)
+  sub2.null.id[[i]] <- sub2.null.var[[i]]/(sub2.null.mean[[i]] + 1e-10)
+  sub3.null.id[[i]] <- sub3.null.var[[i]]/(sub3.null.mean[[i]] + 1e-10)
+  sub4.null.id[[i]] <- sub4.null.var[[i]]/(sub4.null.mean[[i]] + 1e-10)
+  sub5.null.id[[i]] <- sub5.null.var[[i]]/(sub5.null.mean[[i]] + 1e-10)
+  sub6.null.id[[i]] <- sub6.null.var[[i]]/(sub6.null.mean[[i]] + 1e-10)
+  sub7.null.id[[i]] <- sub7.null.var[[i]]/(sub7.null.mean[[i]] + 1e-10)
+  sub8.null.id[[i]] <- sub8.null.var[[i]]/(sub8.null.mean[[i]] + 1e-10)
+}
+```
+
+## Kendall's Tau
+
+### Mean
+
+```{r}
+sub1.null.mean.taus <- c(); sub2.null.mean.taus <- c(); sub3.null.mean.taus <- c(); sub4.null.mean.taus <- c()
+sub5.null.mean.taus <- c(); sub6.null.mean.taus <- c(); sub7.null.mean.taus <- c(); sub8.null.mean.taus <- c()
+t <- seq(1, 15, 1)
+for (i in 1:1000){
+  sub1.null.mean.taus[i] <- cor(sub1.null.mean[[i]], t, method = "kendall")
+  sub2.null.mean.taus[i] <- cor(sub2.null.mean[[i]], t, method = "kendall")
+  sub3.null.mean.taus[i] <- cor(sub3.null.mean[[i]], t, method = "kendall")
+  sub4.null.mean.taus[i] <- cor(sub4.null.mean[[i]], t, method = "kendall")
+  sub5.null.mean.taus[i] <- cor(sub5.null.mean[[i]], t, method = "kendall")
+  sub6.null.mean.taus[i] <- cor(sub6.null.mean[[i]], t, method = "kendall")
+  sub7.null.mean.taus[i] <- cor(sub7.null.mean[[i]], t, method = "kendall")
+  sub8.null.mean.taus[i] <- cor(sub8.null.mean[[i]], t, method = "kendall")
+}
+```
+
+### Variance
+
+```{r}
+sub1.null.var.taus <- c(); sub2.null.var.taus <- c(); sub3.null.var.taus <- c(); sub4.null.var.taus <- c()
+sub5.null.var.taus <- c(); sub6.null.var.taus <- c(); sub7.null.var.taus <- c(); sub8.null.var.taus <- c()
+t <- seq(1, 15, 1)
+for (i in 1:1000){
+  sub1.null.var.taus[i] <- cor(sub1.null.var[[i]], t, method = "kendall")
+  sub2.null.var.taus[i] <- cor(sub2.null.var[[i]], t, method = "kendall")
+  sub3.null.var.taus[i] <- cor(sub3.null.var[[i]], t, method = "kendall")
+  sub4.null.var.taus[i] <- cor(sub4.null.var[[i]], t, method = "kendall")
+  sub5.null.var.taus[i] <- cor(sub5.null.var[[i]], t, method = "kendall")
+  sub6.null.var.taus[i] <- cor(sub6.null.var[[i]], t, method = "kendall")
+  sub7.null.var.taus[i] <- cor(sub7.null.var[[i]], t, method = "kendall")
+  sub8.null.var.taus[i] <- cor(sub8.null.var[[i]], t, method = "kendall")
+}
+```
+
+### Index of Dispersion
+
+```{r}
+sub1.null.id.taus <- c(); sub2.null.id.taus <- c(); sub3.null.id.taus <- c(); sub4.null.id.taus <- c()
+sub5.null.id.taus <- c(); sub6.null.id.taus <- c(); sub7.null.id.taus <- c(); sub8.null.id.taus <- c()
+t <- seq(1, 15, 1)
+for (i in 1:1000){
+  sub1.null.id.taus[i] <- cor(sub1.null.id[[i]], t, method = "kendall")
+  sub2.null.id.taus[i] <- cor(sub2.null.id[[i]], t, method = "kendall")
+  sub3.null.id.taus[i] <- cor(sub3.null.id[[i]], t, method = "kendall")
+  sub4.null.id.taus[i] <- cor(sub4.null.id[[i]], t, method = "kendall")
+  sub5.null.id.taus[i] <- cor(sub5.null.id[[i]], t, method = "kendall")
+  sub6.null.id.taus[i] <- cor(sub6.null.id[[i]], t, method = "kendall")
+  sub7.null.id.taus[i] <- cor(sub7.null.id[[i]], t, method = "kendall")
+  sub8.null.id.taus[i] <- cor(sub8.null.id[[i]], t, method = "kendall")
+}
+```
+
+## Plotting
+
+### Empirical Results
+
+From `4_EWS-EmpData.Rmd`.
+
+```{r}
+sub1.mean.tau <- constant.mean.tau[1]
+sub2.mean.tau <- constant.mean.tau[2]
+sub3.mean.tau <- constant.mean.tau[3]
+sub4.mean.tau <- constant.mean.tau[4]
+sub5.mean.tau <- warming.mean.tau[1]
+sub6.mean.tau <- warming.mean.tau[2]
+sub7.mean.tau <- warming.mean.tau[3]
+sub8.mean.tau <- warming.mean.tau[4]
+
+sub1.var.tau <- constant.var.tau[1]
+sub2.var.tau <- constant.var.tau[2]
+sub3.var.tau <- constant.var.tau[3]
+sub4.var.tau <- constant.var.tau[4]
+sub5.var.tau <- warming.var.tau[1]
+sub6.var.tau <- warming.var.tau[2]
+sub7.var.tau <- warming.var.tau[3]
+sub8.var.tau <- warming.var.tau[4]
+
+sub1.id.tau <- constant.id.tau[1]
+sub2.id.tau <- constant.id.tau[2]
+sub3.id.tau <- constant.id.tau[3]
+sub4.id.tau <- constant.id.tau[4]
+sub5.id.tau <- warming.id.tau[1]
+sub6.id.tau <- warming.id.tau[2]
+sub7.id.tau <- warming.id.tau[3]
+sub8.id.tau <- warming.id.tau[4]
+```
+
+### Mean
+
+```{r}
+subpop <- c(rep("1", 1000), rep("2", 1000), rep("3", 1000), rep("4", 1000), rep("5", 1000), rep("6", 1000), rep("7", 1000), rep("8", 1000))
+real.tau <- c(rep(sub1.mean.tau, 1000), rep(sub2.mean.tau, 1000), rep(sub3.mean.tau, 1000), rep(sub4.mean.tau, 1000), rep(sub5.mean.tau, 1000), rep(sub6.mean.tau, 1000), rep(sub7.mean.tau, 1000), rep(sub8.mean.tau, 1000))
+null.mean.taus <- c(sub1.null.mean.taus, sub2.null.mean.taus, sub3.null.mean.taus, sub4.null.mean.taus, sub5.null.mean.taus, sub6.null.mean.taus, sub7.null.mean.taus, sub8.null.mean.taus)
+null.mean.taus.df <- data.frame(
+  subpop = subpop, 
+  real.tau = real.tau,
+  null.mean.taus = null.mean.taus
+)
+
+cols <- c(rep("#1434A4", 4000), rep("#C21E56", 4000))
+
+ggplot(null.mean.taus.df, aes(x = subpop, y = null.mean.taus)) + 
+  geom_violin() +
+  geom_jitter(height = 0, width = 0.2, colour = cols, alpha = 0.1) +
+  geom_point(aes(y = real.tau), size = 4, shape = 8) + 
+  stat_summary(fun.y = median, geom = "point", size = 4, colour = "black", shape = 16) +
+  xlab("Subpopulation") +
+  ylab("Kendall's Tau (Mean)") +
+  theme(axis.text.x = element_text(colour = "black"),
+        text = element_text(size = 12)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+```
+
+### Variance
+
+```{r}
+subpop <- c(rep("1", 1000), rep("2", 1000), rep("3", 1000), rep("4", 1000), rep("5", 1000), rep("6", 1000), rep("7", 1000), rep("8", 1000))
+real.tau <- c(rep(sub1.var.tau, 1000), rep(sub2.var.tau, 1000), rep(sub3.var.tau, 1000), rep(sub4.var.tau, 1000), rep(sub5.var.tau, 1000), rep(sub6.var.tau, 1000), rep(sub7.var.tau, 1000), rep(sub8.var.tau, 1000))
+null.var.taus <- c(sub1.null.var.taus, sub2.null.var.taus, sub3.null.var.taus, sub4.null.var.taus, sub5.null.var.taus, sub6.null.var.taus, sub7.null.var.taus, sub8.null.var.taus)
+null.var.taus.df <- data.frame(
+  subpop = subpop, 
+  real.tau = real.tau,
+  null.var.taus = null.var.taus
+)
+
+cols <- c(rep("#1434A4", 4000), rep("#C21E56", 4000))
+
+ggplot(null.var.taus.df, aes(x = subpop, y = null.var.taus)) + 
+  geom_violin() +
+  geom_jitter(height = 0, width = 0.2, colour = cols, alpha = 0.1) +
+  geom_point(aes(y = real.tau), size = 4, shape = 8) + 
+  stat_summary(fun.y = median, geom = "point", size = 4, colour = "black", shape = 16) +
+  xlab("Subpopulation") +
+  ylab("Kendall's Tau (Variance)") +
+  theme(axis.text.x = element_text(colour = "black"),
+        text = element_text(size = 12)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+```
+
+### Index of Dispersion
+
+```{r}
+subpop <- c(rep("1", 1000), rep("2", 1000), rep("3", 1000), rep("4", 1000), rep("5", 1000), rep("6", 1000), rep("7", 1000), rep("8", 1000))
+real.tau <- c(rep(sub1.id.tau, 1000), rep(sub2.id.tau, 1000), rep(sub3.id.tau, 1000), rep(sub4.id.tau, 1000), rep(sub5.id.tau, 1000), rep(sub6.id.tau, 1000), rep(sub7.id.tau, 1000), rep(sub8.id.tau, 1000))
+null.id.taus <- c(sub1.null.id.taus, sub2.null.id.taus, sub3.null.id.taus, sub4.null.id.taus, sub5.null.id.taus, sub6.null.id.taus, sub7.null.id.taus, sub8.null.id.taus)
+null.id.taus.df <- data.frame(
+  subpop = subpop, 
+  real.tau = real.tau,
+  null.id.taus = null.id.taus
+)
+
+cols <- c(rep("#1434A4", 4000), rep("#C21E56", 4000))
+
+ggplot(null.id.taus.df, aes(x = subpop, y = null.id.taus)) + 
+  geom_violin() +
+  geom_jitter(height = 0, width = 0.2, colour = cols, alpha = 0.1) +
+  geom_point(aes(y = real.tau), size = 4, shape = 8) + 
+  stat_summary(fun.y = median, geom = "point", size = 4, colour = "black", shape = 16) +
+  xlab("Subpopulation") +
+  ylab("Kendall's Tau (Index of Dispersion)") +
+  theme(axis.text.x = element_text(colour = "black"),
+        text = element_text(size = 12)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+```
+
+## False-Positive Rate
+
+```{r}
+## Mean
+sub1.null.mean.taus <- sub1.null.mean.taus[!is.na(sub1.null.mean.taus)]
+sub2.null.mean.taus <- sub2.null.mean.taus[!is.na(sub2.null.mean.taus)]
+sub3.null.mean.taus <- sub3.null.mean.taus[!is.na(sub3.null.mean.taus)]
+sub4.null.mean.taus <- sub4.null.mean.taus[!is.na(sub4.null.mean.taus)]
+sub5.null.mean.taus <- sub5.null.mean.taus[!is.na(sub5.null.mean.taus)]
+sub6.null.mean.taus <- sub6.null.mean.taus[!is.na(sub6.null.mean.taus)]
+sub7.null.mean.taus <- sub7.null.mean.taus[!is.na(sub7.null.mean.taus)]
+sub8.null.mean.taus <- sub8.null.mean.taus[!is.na(sub8.null.mean.taus)]
+# Percent of "bootstraps" with larger value of tau than found in empirical data
+sub1.mean.fpr.gt <- length(which(sub1.null.mean.taus >= sub1.mean.tau))/length(sub1.null.mean.taus)
+sub2.mean.fpr.gt <- length(which(sub2.null.mean.taus >= sub2.mean.tau))/length(sub2.null.mean.taus)
+sub3.mean.fpr.gt <- length(which(sub3.null.mean.taus >= sub3.mean.tau))/length(sub3.null.mean.taus)
+sub4.mean.fpr.gt <- length(which(sub4.null.mean.taus >= sub4.mean.tau))/length(sub4.null.mean.taus)
+sub5.mean.fpr.gt <- length(which(sub5.null.mean.taus >= sub5.mean.tau))/length(sub5.null.mean.taus)
+sub6.mean.fpr.gt <- length(which(sub6.null.mean.taus >= sub6.mean.tau))/length(sub6.null.mean.taus)
+sub7.mean.fpr.gt <- length(which(sub7.null.mean.taus >= sub7.mean.tau))/length(sub7.null.mean.taus)
+sub8.mean.fpr.gt <- length(which(sub8.null.mean.taus >= sub8.mean.tau))/length(sub8.null.mean.taus)
+
+sub1.null.mean.taus <- sub1.null.mean.taus[!is.na(sub1.null.mean.taus)]
+sub2.null.mean.taus <- sub2.null.mean.taus[!is.na(sub2.null.mean.taus)]
+sub3.null.mean.taus <- sub3.null.mean.taus[!is.na(sub3.null.mean.taus)]
+sub4.null.mean.taus <- sub4.null.mean.taus[!is.na(sub4.null.mean.taus)]
+sub5.null.mean.taus <- sub5.null.mean.taus[!is.na(sub5.null.mean.taus)]
+sub6.null.mean.taus <- sub6.null.mean.taus[!is.na(sub6.null.mean.taus)]
+sub7.null.mean.taus <- sub7.null.mean.taus[!is.na(sub7.null.mean.taus)]
+sub8.null.mean.taus <- sub8.null.mean.taus[!is.na(sub8.null.mean.taus)]
+# Percent of "bootstraps" with smaller value of tau than found in empirical data
+sub1.mean.fpr.lt <- length(which(sub1.null.mean.taus <= sub1.mean.tau))/length(sub1.null.mean.taus)
+sub2.mean.fpr.lt <- length(which(sub2.null.mean.taus <= sub2.mean.tau))/length(sub2.null.mean.taus)
+sub3.mean.fpr.lt <- length(which(sub3.null.mean.taus <= sub3.mean.tau))/length(sub3.null.mean.taus)
+sub4.mean.fpr.lt <- length(which(sub4.null.mean.taus <= sub4.mean.tau))/length(sub4.null.mean.taus)
+sub5.mean.fpr.lt <- length(which(sub5.null.mean.taus <= sub5.mean.tau))/length(sub5.null.mean.taus)
+sub6.mean.fpr.lt <- length(which(sub6.null.mean.taus <= sub6.mean.tau))/length(sub6.null.mean.taus)
+sub7.mean.fpr.lt <- length(which(sub7.null.mean.taus <= sub7.mean.tau))/length(sub7.null.mean.taus)
+sub8.mean.fpr.lt <- length(which(sub8.null.mean.taus <= sub8.mean.tau))/length(sub8.null.mean.taus)
+
+## Variance
+sub1.null.var.taus <- sub1.null.var.taus[!is.na(sub1.null.var.taus)]
+sub2.null.var.taus <- sub2.null.var.taus[!is.na(sub2.null.var.taus)]
+sub3.null.var.taus <- sub3.null.var.taus[!is.na(sub3.null.var.taus)]
+sub4.null.var.taus <- sub4.null.var.taus[!is.na(sub4.null.var.taus)]
+sub5.null.var.taus <- sub5.null.var.taus[!is.na(sub5.null.var.taus)]
+sub6.null.var.taus <- sub6.null.var.taus[!is.na(sub6.null.var.taus)]
+sub7.null.var.taus <- sub7.null.var.taus[!is.na(sub7.null.var.taus)]
+sub8.null.var.taus <- sub8.null.var.taus[!is.na(sub8.null.var.taus)]
+sub1.var.fpr.gt <- length(which(sub1.null.var.taus >= sub1.var.tau))/length(sub1.null.var.taus)
+sub2.var.fpr.gt <- length(which(sub2.null.var.taus >= sub2.var.tau))/length(sub2.null.var.taus)
+sub3.var.fpr.gt <- length(which(sub3.null.var.taus >= sub3.var.tau))/length(sub3.null.var.taus)
+sub4.var.fpr.gt <- length(which(sub4.null.var.taus >= sub4.var.tau))/length(sub4.null.var.taus)
+sub5.var.fpr.gt <- length(which(sub5.null.var.taus >= sub5.var.tau))/length(sub5.null.var.taus)
+sub6.var.fpr.gt <- length(which(sub6.null.var.taus >= sub6.var.tau))/length(sub6.null.var.taus)
+sub7.var.fpr.gt <- length(which(sub7.null.var.taus >= sub7.var.tau))/length(sub7.null.var.taus)
+sub8.var.fpr.gt <- length(which(sub8.null.var.taus >= sub8.var.tau))/length(sub8.null.var.taus)
+
+sub1.null.var.taus <- sub1.null.var.taus[!is.na(sub1.null.var.taus)]
+sub2.null.var.taus <- sub2.null.var.taus[!is.na(sub2.null.var.taus)]
+sub3.null.var.taus <- sub3.null.var.taus[!is.na(sub3.null.var.taus)]
+sub4.null.var.taus <- sub4.null.var.taus[!is.na(sub4.null.var.taus)]
+sub5.null.var.taus <- sub5.null.var.taus[!is.na(sub5.null.var.taus)]
+sub6.null.var.taus <- sub6.null.var.taus[!is.na(sub6.null.var.taus)]
+sub7.null.var.taus <- sub7.null.var.taus[!is.na(sub7.null.var.taus)]
+sub8.null.var.taus <- sub8.null.var.taus[!is.na(sub8.null.var.taus)]
+sub1.var.fpr.lt <- length(which(sub1.null.var.taus <= sub1.var.tau))/length(sub1.null.var.taus)
+sub2.var.fpr.lt <- length(which(sub2.null.var.taus <= sub2.var.tau))/length(sub2.null.var.taus)
+sub3.var.fpr.lt <- length(which(sub3.null.var.taus <= sub3.var.tau))/length(sub3.null.var.taus)
+sub4.var.fpr.lt <- length(which(sub4.null.var.taus <= sub4.var.tau))/length(sub4.null.var.taus)
+sub5.var.fpr.lt <- length(which(sub5.null.var.taus <= sub5.var.tau))/length(sub5.null.var.taus)
+sub6.var.fpr.lt <- length(which(sub6.null.var.taus <= sub6.var.tau))/length(sub6.null.var.taus)
+sub7.var.fpr.lt <- length(which(sub7.null.var.taus <= sub7.var.tau))/length(sub7.null.var.taus)
+sub8.var.fpr.lt <- length(which(sub8.null.var.taus <= sub8.var.tau))/length(sub8.null.var.taus)
+
+## Index of Dispersion
+sub1.null.id.taus <- sub1.null.id.taus[!is.na(sub1.null.id.taus)]
+sub2.null.id.taus <- sub2.null.id.taus[!is.na(sub2.null.id.taus)]
+sub3.null.id.taus <- sub3.null.id.taus[!is.na(sub3.null.id.taus)]
+sub4.null.id.taus <- sub4.null.id.taus[!is.na(sub4.null.id.taus)]
+sub5.null.id.taus <- sub5.null.id.taus[!is.na(sub5.null.id.taus)]
+sub6.null.id.taus <- sub6.null.id.taus[!is.na(sub6.null.id.taus)]
+sub7.null.id.taus <- sub7.null.id.taus[!is.na(sub7.null.id.taus)]
+sub8.null.id.taus <- sub8.null.id.taus[!is.na(sub8.null.id.taus)]
+sub1.id.fpr.gt <- length(which(sub1.null.id.taus >= sub1.id.tau))/length(sub1.null.id.taus)
+sub2.id.fpr.gt <- length(which(sub2.null.id.taus >= sub2.id.tau))/length(sub2.null.id.taus)
+sub3.id.fpr.gt <- length(which(sub3.null.id.taus >= sub3.id.tau))/length(sub3.null.id.taus)
+sub4.id.fpr.gt <- length(which(sub4.null.id.taus >= sub4.id.tau))/length(sub4.null.id.taus)
+sub5.id.fpr.gt <- length(which(sub5.null.id.taus >= sub5.id.tau))/length(sub5.null.id.taus)
+sub6.id.fpr.gt <- length(which(sub6.null.id.taus >= sub6.id.tau))/length(sub6.null.id.taus)
+sub7.id.fpr.gt <- length(which(sub7.null.id.taus >= sub7.id.tau))/length(sub7.null.id.taus)
+sub8.id.fpr.gt <- length(which(sub8.null.id.taus >= sub8.id.tau))/length(sub8.null.id.taus)
+
+sub1.null.id.taus <- sub1.null.id.taus[!is.na(sub1.null.id.taus)]
+sub2.null.id.taus <- sub2.null.id.taus[!is.na(sub2.null.id.taus)]
+sub3.null.id.taus <- sub3.null.id.taus[!is.na(sub3.null.id.taus)]
+sub4.null.id.taus <- sub4.null.id.taus[!is.na(sub4.null.id.taus)]
+sub5.null.id.taus <- sub5.null.id.taus[!is.na(sub5.null.id.taus)]
+sub6.null.id.taus <- sub6.null.id.taus[!is.na(sub6.null.id.taus)]
+sub7.null.id.taus <- sub7.null.id.taus[!is.na(sub7.null.id.taus)]
+sub8.null.id.taus <- sub8.null.id.taus[!is.na(sub8.null.id.taus)]
+sub1.id.fpr.lt <- length(which(sub1.null.id.taus <= sub1.id.tau))/length(sub1.null.id.taus)
+sub2.id.fpr.lt <- length(which(sub2.null.id.taus <= sub2.id.tau))/length(sub2.null.id.taus)
+sub3.id.fpr.lt <- length(which(sub3.null.id.taus <= sub3.id.tau))/length(sub3.null.id.taus)
+sub4.id.fpr.lt <- length(which(sub4.null.id.taus <= sub4.id.tau))/length(sub4.null.id.taus)
+sub5.id.fpr.lt <- length(which(sub5.null.id.taus <= sub5.id.tau))/length(sub5.null.id.taus)
+sub6.id.fpr.lt <- length(which(sub6.null.id.taus <= sub6.id.tau))/length(sub6.null.id.taus)
+sub7.id.fpr.lt <- length(which(sub7.null.id.taus <= sub7.id.tau))/length(sub7.null.id.taus)
+sub8.id.fpr.lt <- length(which(sub8.null.id.taus <= sub8.id.tau))/length(sub8.null.id.taus)
+```
+
+### Plotting
+
+```{r}
+cols <- c(rep("#1434A4", 4), rep("#C21E56", 4))
+
+mean.gt <- c(sub1.mean.fpr.gt, sub2.mean.fpr.gt, sub3.mean.fpr.gt, sub4.mean.fpr.gt,
+          sub5.mean.fpr.gt, sub6.mean.fpr.gt, sub7.mean.fpr.gt, sub8.mean.fpr.gt)
+mean.lt <- c(sub1.mean.fpr.lt, sub2.mean.fpr.lt, sub3.mean.fpr.lt, sub4.mean.fpr.lt,
+             sub5.mean.fpr.lt, sub6.mean.fpr.lt, sub7.mean.fpr.lt, sub8.mean.fpr.lt)
+plot(1:8, mean.gt, col = cols, pch = 0, main = "Mean", xlab = "Subpopulation", ylab = "False Positive Rate", ylim = c(0, 1))
+points(1:8, mean.lt, col = cols, pch = 2)
+abline(h = 0.05)
+legend("right", legend = c("Greater Than", "Less Than"), col = "black", pch = c(0, 2))
+
+var.gt <- c(sub1.var.fpr.gt, sub2.var.fpr.gt, sub3.var.fpr.gt, sub4.var.fpr.gt,
+          sub5.var.fpr.gt, sub6.var.fpr.gt, sub7.var.fpr.gt, sub8.var.fpr.gt)
+var.lt <- c(sub1.var.fpr.lt, sub2.var.fpr.lt, sub3.var.fpr.lt, sub4.var.fpr.lt,
+             sub5.var.fpr.lt, sub6.var.fpr.lt, sub7.var.fpr.lt, sub8.var.fpr.lt)
+plot(1:8, var.gt, col = cols, pch = 0, main = "Variance", xlab = "Subpopulation", ylab = "False Positive Rate", ylim = c(0, 1))
+points(1:8, var.lt, col = cols, pch = 2)
+abline(h = 0.05)
+legend("right", legend = c("Greater Than", "Less Than"), col = "black", pch = c(0, 2))
+
+id.gt <- c(sub1.id.fpr.gt, sub2.id.fpr.gt, sub3.id.fpr.gt, sub4.id.fpr.gt,
+          sub5.id.fpr.gt, sub6.id.fpr.gt, sub7.id.fpr.gt, sub8.id.fpr.gt)
+id.lt <- c(sub1.id.fpr.lt, sub2.id.fpr.lt, sub3.id.fpr.lt, sub4.id.fpr.lt,
+             sub5.id.fpr.lt, sub6.id.fpr.lt, sub7.id.fpr.lt, sub8.id.fpr.lt)
+plot(1:8, id.gt, col = cols, pch = 0, main = "Index of Dispersion", xlab = "Subpopulation", ylab = "False Positive Rate", ylim = c(0, 1))
+points(1:8, id.lt, col = cols, pch = 2)
+abline(h = 0.05)
+legend("right", legend = c("Greater Than", "Less Than"), col = "black", pch = c(0, 2))
+```
+
+## Saving Nulls
+
+```{r}
+subpops <- c(rep(1, 1000), rep(2, 1000), rep(3, 1000), rep(4, 1000), rep(5, 1000), rep(6, 1000), rep(7, 1000), rep(8, 1000))
+
+resamp.mean.taus <- data.frame(subpops, null.mean.taus)
+resamp.mean.taus.CIs <- c(); j = 1; k = 1000
+for (i in 1:8){
+  resamp.mean.taus.CIs[i] <- quantile(resamp.mean.taus[j:k, 2], probs = c(0.95), na.rm = TRUE)
+  j = j + 1000; k = k + 1000
+}
+
+resamp.var.taus <- data.frame(subpops, null.var.taus)
+resamp.var.taus.CIs <- c(); j = 1; k = 1000
+for (i in 1:8){
+  resamp.var.taus.CIs[i] <- quantile(resamp.var.taus[j:k, 2], probs = c(0.95), na.rm = TRUE)
+  j = j + 1000; k = k + 1000
+}
+
+resamp.id.taus <- data.frame(subpops, null.id.taus)
+resamp.id.taus.CIs <- c(); j = 1; k = 1000
+for (i in 1:8){
+  resamp.id.taus.CIs[i] <- quantile(resamp.id.taus[j:k, 2], probs = c(0.95), na.rm = TRUE)
+  j = j + 1000; k = k + 1000
+}
+
+resamp.mean.pvals <- c(sub1.mean.fpr.gt, sub2.mean.fpr.gt, sub3.mean.fpr.gt, sub4.mean.fpr.gt,
+                       sub5.mean.fpr.gt, sub6.mean.fpr.gt, sub7.mean.fpr.gt, sub8.mean.fpr.gt)
+resamp.var.pvals <- c(sub1.var.fpr.gt, sub2.var.fpr.gt, sub3.var.fpr.gt, sub4.var.fpr.gt,
+                       sub5.var.fpr.gt, sub6.var.fpr.gt, sub7.var.fpr.gt, sub8.var.fpr.gt)
+resamp.id.pvals <- c(sub1.id.fpr.gt, sub2.id.fpr.gt, sub3.id.fpr.gt, sub4.id.fpr.gt,
+                       sub5.id.fpr.gt, sub6.id.fpr.gt, sub7.id.fpr.gt, sub8.id.fpr.gt)
+```
+
+# (2) Modified Mann-Kendall Test
+
+I think you apply this, instead of just calculating Kendall's $\tau$ normally? Kind of unclear. Let's see!
+
+Note that `pop1.mean` and related vectors were generated in `4_EWS-EmpData.Rmd`, and are the metrics of interest, as calculated within sliding windows.
+
+## Generating Null Distributions
+
+```{r}
+# Where n is the number of observations, and ps.i is the autocorrelation of the ranks of the observation
+mod.man.kendall <- function(n, ps){
+  
+  to.sum <- c()
+  for (i in 1:n - 1){
+    to.sum[i] <- (n - i)*(n - i - 1)*(n - i - 2)*ps[i]
+  }
+  
+  var.tau = (2*(2*n + 5))/(9*n*(n - 1)) * (1 + 2/(n*(n - 1)*(n - 2)) * sum(to.sum))
+  
+  return(var.tau)
+}
+
+## Let's try it
+
+## Mean
+means <- data.frame(pop1.mean, pop2.mean, pop3.mean, pop4.mean, pop5.mean, pop6.mean, pop7.mean, pop8.mean); means <- means[1:15, ]
+var <- c()
+for (i in 1:8){
+  ts <- means[ , i]
+  rank <- rank(ts)
+  rank.acf <- as.numeric(acf(rank, lag.max = length(ts) - 1, plot = FALSE)$acf)
+  var[i] <- mod.man.kendall(n = length(ts), ps = rank.acf)
+}
+cols <- c(rep("#A7C7E7", 4), rep("#F6799D", 4))
+mains <- c("pop1.mean", "pop2.mean", "pop3.mean", "pop4.mean", "pop5.mean", "pop6.mean", "pop7.mean", "pop8.mean")
+true.taus <- c(constant.mean.tau, warming.mean.tau)
+vline.cols <- c(rep("#1434A4", 4), rep("#C21E56", 4))
+par(mfrow = c(2, 4))
+for (i in 1:8){
+  hist(rnorm(n = 1000, mean = 0, sd = sqrt(var[i])), 
+     col = cols[i], border = cols[i],
+     xlim = c(-1, 1), ylim = c(1, 250),
+     main = mains[i], xlab = "")
+  abline(v = true.taus[i], col = vline.cols[i], lwd = 2)
+}
+
+## Variance
+vars <- data.frame(pop1.var, pop2.var, pop3.var, pop4.var, pop5.var, pop6.var, pop7.var, pop8.var); vars <- vars[1:15, ]
+var <- c()
+for (i in 1:8){
+  ts <- vars[ , i]
+  rank <- rank(ts)
+  rank.acf <- as.numeric(acf(rank, lag.max = length(ts) - 1, plot = FALSE)$acf)
+  var[i] <- mod.man.kendall(n = length(ts), ps = rank.acf)
+}
+cols <- c(rep("#A7C7E7", 4), rep("#F6799D", 4))
+mains <- c("pop1.var", "pop2.var", "pop3.var", "pop4.var", "pop5.var", "pop6.var", "pop7.var", "pop8.var")
+true.taus <- c(constant.var.tau, warming.var.tau)
+vline.cols <- c(rep("#1434A4", 4), rep("#C21E56", 4))
+par(mfrow = c(2, 4))
+for (i in 1:8){
+  hist(rnorm(n = 1000, mean = 0, sd = sqrt(var[i])), 
+     col = cols[i], border = cols[i],
+     xlim = c(-1, 1), ylim = c(1, 250),
+     main = mains[i], xlab = "")
+  abline(v = true.taus[i], col = vline.cols[i], lwd = 2)
+}
+
+## Index of Dispersion
+ids <- data.frame(pop1.id, pop2.id, pop3.id, pop4.id, pop5.id, pop6.id, pop7.id, pop8.id); ids <- ids[1:15, ]
+var <- c()
+for (i in 1:8){
+  ts <- ids[ , i]
+  rank <- rank(ts)
+  rank.acf <- as.numeric(acf(rank, lag.max = length(ts) - 1, plot = FALSE)$acf)
+  var[i] <- mod.man.kendall(n = length(ts), ps = rank.acf)
+}
+cols <- c(rep("#A7C7E7", 4), rep("#F6799D", 4))
+mains <- c("pop1.id", "pop2.id", "pop3.id", "pop4.id", "pop5.id", "pop6.id", "pop7.id", "pop8.id")
+true.taus <- c(constant.id.tau, warming.id.tau)
+vline.cols <- c(rep("#1434A4", 4), rep("#C21E56", 4))
+par(mfrow = c(2, 4))
+for (i in 1:8){
+  hist(rnorm(n = 1000, mean = 0, sd = sqrt(var[i])), 
+     col = cols[i], border = cols[i],
+     xlim = c(-1, 1), ylim = c(1, 250),
+     main = mains[i], xlab = "")
+  abline(v = true.taus[i], col = vline.cols[i], lwd = 2)
+}
+```
+
+## Calculating *p*-Values
+
+```{r}
+means <- data.frame(pop1.mean, pop2.mean, pop3.mean, pop4.mean, pop5.mean, pop6.mean, pop7.mean, pop8.mean); means <- means[1:15, ]
+var <- c()
+for (i in 1:8){
+  ts <- means[ , i]
+  rank <- rank(ts)
+  rank.acf <- as.numeric(acf(rank, lag.max = length(ts) - 1, plot = FALSE)$acf)
+  var[i] <- mod.man.kendall(n = length(ts), ps = rank.acf)
+}
+true.taus <- c(constant.mean.tau, warming.mean.tau)
+null.mean.taus.df <- c()
+mean.p.vals <- c()
+for (i in 1:8){
+  set.seed(123)
+  null.mean.taus <- rnorm(n = 1000, mean = 0, sd = sqrt(var[i]))
+  null.mean.taus.df <- c(null.mean.taus.df, null.mean.taus)
+  mean.p.vals[i] <- length(which(null.mean.taus >= true.taus[i]))/1000
+}
+null.mean.taus.df <- as.data.frame(null.mean.taus.df)
+
+vars <- data.frame(pop1.var, pop2.var, pop3.var, pop4.var, pop5.var, pop6.var, pop7.var, pop8.var); vars <- vars[1:15, ]
+var <- c()
+for (i in 1:8){
+  ts <- vars[ , i]
+  rank <- rank(ts)
+  rank.acf <- as.numeric(acf(rank, lag.max = length(ts) - 1, plot = FALSE)$acf)
+  var[i] <- mod.man.kendall(n = length(ts), ps = rank.acf)
+}
+true.taus <- c(constant.var.tau, warming.var.tau)
+null.var.taus.df <- c()
+var.p.vals <- c()
+for (i in 1:8){
+  set.seed(123)
+  null.var.taus <- rnorm(n = 1000, mean = 0, sd = sqrt(var[i]))
+  null.var.taus.df <- c(null.var.taus.df, null.var.taus)
+  var.p.vals[i] <- length(which(null.var.taus >= true.taus[i]))/1000
+}
+null.var.taus.df <- as.data.frame(null.var.taus.df)
+
+ids <- data.frame(pop1.id, pop2.id, pop3.id, pop4.id, pop5.id, pop6.id, pop7.id, pop8.id); ids <- ids[1:15, ]
+var <- c()
+for (i in 1:8){
+  ts <- ids[ , i]
+  rank <- rank(ts)
+  rank.acf <- as.numeric(acf(rank, lag.max = length(ts) - 1, plot = FALSE)$acf)
+  var[i] <- mod.man.kendall(n = length(ts), ps = rank.acf)
+}
+true.taus <- c(constant.id.tau, warming.id.tau)
+null.id.taus.df <- c()
+id.p.vals <- c()
+for (i in 1:8){
+  set.seed(123)
+  null.id.taus <- rnorm(n = 1000, mean = 0, sd = sqrt(var[i]))
+  null.id.taus.df <- c(null.id.taus.df, null.id.taus)
+  id.p.vals[i] <- length(which(null.id.taus >= true.taus[i]))/1000
+}
+null.id.taus.df <- as.data.frame(null.id.taus.df)
+
+p.vals <- data.frame(
+  mean = mean.p.vals,
+  var = var.p.vals,
+  id = id.p.vals
+)
+rownames(p.vals) <- c("constant.1", "constant.2", "constant.3", "constant.4", "warming.1", "warming.2", "warming.3", "warming.4")
+x.labs <- c("Mean", "Variance", "Index of Dispersion")
+plot(x = 1, type = "n", xaxt = "n", yaxt = "n", 
+     main = "P-Values Per Modified Mann-Kendall Test", xlab = "", ylab = "P-Value",
+     xlim = c(1, 3), ylim = c(0, 1))
+text(1:3, p.vals[1, ], label = 1, col = alpha("#1434A4", 0.5))
+text(1:3, p.vals[2, ], label = 2, col = alpha("#1434A4", 0.5))
+text(1:3, p.vals[3, ], label = 3, col = alpha("#1434A4", 0.5))
+text(1:3, p.vals[4, ], label = 4, col = alpha("#1434A4", 0.5))
+text(1:3, p.vals[5, ], label = 5, col = alpha("#C21E56", 0.5))
+text(1:3, p.vals[6, ], label = 6, col = alpha("#C21E56", 0.5))
+text(1:3, p.vals[7, ], label = 7, col = alpha("#C21E56", 0.5))
+text(1:3, p.vals[8, ], label = 8, col = alpha("#C21E56", 0.5))
+abline(h = 0.05, lty = 3)
+axis(1, at = 1:3, labels = x.labs)
+axis(2, at = c(0, 1))
+legend("topright", legend = c("Constant Tempertaure", "Rising Temperature"),
+       pch = 19, col = c("#1434A4", "#C21E56"), cex = 0.8, bty = "n")
+```
+
+## Saving Nulls
+
+```{r}
+subpops <- c(rep(1, 1000), rep(2, 1000), rep(3, 1000), rep(4, 1000), rep(5, 1000), rep(6, 1000), rep(7, 1000), rep(8, 1000))
+
+mmk.mean.taus <- data.frame(subpops, null.mean.taus.df)
+mmk.mean.taus.CIs <- c(); j = 1; k = 1000
+for (i in 1:8){
+  mmk.mean.taus.CIs[i] <- quantile(mmk.mean.taus[j:k, 2], probs = c(0.95), na.rm = TRUE)
+  j = j + 1000; k = k + 1000
+}
+
+mmk.var.taus <- data.frame(subpops, null.var.taus.df)
+mmk.var.taus.CIs <- c(); j = 1; k = 1000
+for (i in 1:8){
+  mmk.var.taus.CIs[i] <- quantile(mmk.var.taus[j:k, 2], probs = c(0.95), na.rm = TRUE)
+  j = j + 1000; k = k + 1000
+}
+
+mmk.id.taus <- data.frame(subpops, null.id.taus.df)
+mmk.id.taus.CIs <- c(); j = 1; k = 1000
+for (i in 1:8){
+  mmk.id.taus.CIs[i] <- quantile(mmk.id.taus[j:k, 2], probs = c(0.95), na.rm = TRUE)
+  j = j + 1000; k = k + 1000
+}
+
+mmk.mean.pvals <- p.vals$mean
+mmk.var.pvals <- p.vals$var
+mmk.id.pvals <- p.vals$id
+```
+
+# (3) Surrogate Time Series via AR-1 Model
+
+## Generating Surrogate Time Series
+
+**Per Dakos et al. 2008:** "To test against the H0 hypothesis that the data are produced by a colored-noise process with similar variance, mean, and autocorrelation at lag 1 with the original detrended time series (Theiler et al. 1992), we generated surrogate sets by an AR1 model $x_{t+1} = \alpha_1 x_t + \alpha_0 + \sigma \epsilon_t$, where $\alpha_1 = A(1), \sigma^2 = v(1-\alpha_1^2)$, $\alpha_0 = \mu(1-\alpha_1)$, with $v$ the variance, $\mu$ the mean, $A(1)$ the autocorrelation at lag 1 from the residual time series (estimated by using function `acf` as implemented in R), and $\sigma$ a scaling factor for the Gaussian random error $\epsilon_t$.
+
+```{r}
+## Original empirical time series
+data <- read.csv("Kirk_Data/Epidemics_Data_Dryad/Kirk_et_al_epidemics_sampling_data.csv")
+sub1 <- subset(data.sum, population == 1)
+sub2 <- subset(data.sum, population == 2)
+sub3 <- subset(data.sum, population == 3)
+sub4 <- subset(data.sum, population == 4)
+sub5 <- subset(data.sum, population == 5)
+sub6 <- subset(data.sum, population == 6)
+sub7 <- subset(data.sum, population == 7)
+sub8 <- subset(data.sum, population == 8)
+sub1.ts <- sub1$status.sum[1:20]
+sub2.ts <- sub2$status.sum[1:20]
+sub3.ts <- sub3$status.sum[1:20]
+sub4.ts <- sub4$status.sum[1:20]
+sub5.ts <- sub5$status.sum[1:20]
+sub6.ts <- sub6$status.sum[1:20]
+sub7.ts <- sub7$status.sum[1:20]
+sub8.ts <- sub8$status.sum[1:20]
+
+## Mean, variance
+sub1.ts.mean <- mean(sub1.ts); sub1.ts.var <- var(sub1.ts); print(c(sub1.ts.mean, sub1.ts.var))
+sub2.ts.mean <- mean(sub2.ts); sub2.ts.var <- var(sub2.ts); print(c(sub2.ts.mean, sub2.ts.var))
+sub3.ts.mean <- mean(sub3.ts); sub3.ts.var <- var(sub3.ts); print(c(sub3.ts.mean, sub3.ts.var))
+sub4.ts.mean <- mean(sub4.ts); sub4.ts.var <- var(sub4.ts); print(c(sub4.ts.mean, sub4.ts.var))
+sub5.ts.mean <- mean(sub5.ts); sub5.ts.var <- var(sub5.ts); print(c(sub5.ts.mean, sub5.ts.var))
+sub6.ts.mean <- mean(sub6.ts); sub6.ts.var <- var(sub6.ts); print(c(sub6.ts.mean, sub6.ts.var))
+sub7.ts.mean <- mean(sub7.ts); sub7.ts.var <- var(sub7.ts); print(c(sub7.ts.mean, sub7.ts.var))
+sub8.ts.mean <- mean(sub8.ts); sub8.ts.var <- var(sub8.ts); print(c(sub8.ts.mean, sub8.ts.var))
+
+## AR(1)
+sub1.ts.ac <- acf(sub1.ts, lag.max = 1, type = "correlation", plot = FALSE)[[1]][2]
+sub2.ts.ac <- acf(sub2.ts, lag.max = 1, type = "correlation", plot = FALSE)[[1]][2] 
+sub3.ts.ac <- acf(sub3.ts, lag.max = 1, type = "correlation", plot = FALSE)[[1]][2] 
+sub4.ts.ac <- acf(sub4.ts, lag.max = 1, type = "correlation", plot = FALSE)[[1]][2] 
+sub5.ts.ac <- acf(sub5.ts, lag.max = 1, type = "correlation", plot = FALSE)[[1]][2] 
+sub6.ts.ac <- acf(sub6.ts, lag.max = 1, type = "correlation", plot = FALSE)[[1]][2] 
+sub7.ts.ac <- acf(sub7.ts, lag.max = 1, type = "correlation", plot = FALSE)[[1]][2]
+sub8.ts.ac <- acf(sub8.ts, lag.max = 1, type = "correlation", plot = FALSE)[[1]][2] 
+
+## Function
+AR.func <- function(x.prev, mu, v, ac){
+  
+  delta <- mu*(1 - ac)
+  
+  sigma2 <- v*(1 - ac^2)
+  
+  omega <- rnorm(n = 1, mean = 0, sd = sigma2)
+  
+  x.next <- delta + ac*x.prev + omega
+  
+  return(x.next)
+  
+}
+
+## Implementation
+x.prev <- 0
+seed <- c(1:119)
+surr.ts <- c(x.prev)
+for (i in 1:119){
+  set.seed(seed[i])
+  x.next <- AR.func(x.prev = x.prev, mu = sub1.ts.mean, v = sub1.ts.var, ac = sub1.ts.ac)
+  surr.ts <- c(surr.ts, x.next)
+  x.prev <- x.next
+}
+surr.ts <- surr.ts[seq(3, 120, 3)]
+plot(seq(3, 120, 3), surr.ts, type = "l",
+     xlab = "Day", ylab = "Prevalence")
+abline(h = 0, lty = 2)
+
+## Get 1000 time series
+ints <- c(1:(1000*119))
+all.seeds <- matrix(ints, nrow = 119)
+
+## Subpopulation 1
+sub1.surr.df <- c()
+for (i in 1:1000){
+  x.prev <- 0
+  seeds <- all.seeds[ , i]
+  surr.ts <- c(x.prev)
+  for (j in 1:119){
+    set.seed(seeds[j])
+    x.next <- AR.func(x.prev = x.prev, mu = sub1.ts.mean, v = sub1.ts.var, ac = sub1.ts.ac)
+    surr.ts <- c(surr.ts, x.next)
+    x.prev <- x.next
+  }
+  sub1.surr.df <- cbind(sub1.surr.df, surr.ts)
+}
+sub1.surr.df <- as.data.frame(sub1.surr.df[seq(3, 120, 3), ])
+
+## Subpopulation 2
+sub2.surr.df <- c()
+for (i in 1:1000){
+  x.prev <- 0
+  seeds <- all.seeds[ , i]
+  surr.ts <- c(x.prev)
+  for (j in 1:119){
+    set.seed(seeds[j])
+    x.next <- AR.func(x.prev = x.prev, mu = sub2.ts.mean, v = sub2.ts.var, ac = sub2.ts.ac)
+    surr.ts <- c(surr.ts, x.next)
+    x.prev <- x.next
+  }
+  sub2.surr.df <- cbind(sub2.surr.df, surr.ts)
+}
+sub2.surr.df <- as.data.frame(sub2.surr.df[seq(3, 120, 3), ])
+
+## Subpopulation 3
+sub3.surr.df <- c()
+for (i in 1:1000){
+  x.prev <- 0
+  seeds <- all.seeds[ , i]
+  surr.ts <- c(x.prev)
+  for (j in 1:119){
+    set.seed(seeds[j])
+    x.next <- AR.func(x.prev = x.prev, mu = sub3.ts.mean, v = sub3.ts.var, ac = sub3.ts.ac)
+    surr.ts <- c(surr.ts, x.next)
+    x.prev <- x.next
+  }
+  sub3.surr.df <- cbind(sub3.surr.df, surr.ts)
+}
+sub3.surr.df <- as.data.frame(sub3.surr.df[seq(3, 120, 3), ])
+
+## Subpopulation 4
+sub4.surr.df <- c()
+for (i in 1:1000){
+  x.prev <- 0
+  seeds <- all.seeds[ , i]
+  surr.ts <- c(x.prev)
+  for (j in 1:119){
+    set.seed(seeds[j])
+    x.next <- AR.func(x.prev = x.prev, mu = sub4.ts.mean, v = sub4.ts.var, ac = sub4.ts.ac)
+    surr.ts <- c(surr.ts, x.next)
+    x.prev <- x.next
+  }
+  sub4.surr.df <- cbind(sub4.surr.df, surr.ts)
+}
+sub4.surr.df <- as.data.frame(sub4.surr.df[seq(3, 120, 3), ])
+
+## Subpopulation 5
+sub5.surr.df <- c()
+for (i in 1:1000){
+  x.prev <- 0
+  seeds <- all.seeds[ , i]
+  surr.ts <- c(x.prev)
+  for (j in 1:119){
+    set.seed(seeds[j])
+    x.next <- AR.func(x.prev = x.prev, mu = sub5.ts.mean, v = sub5.ts.var, ac = sub5.ts.ac)
+    surr.ts <- c(surr.ts, x.next)
+    x.prev <- x.next
+  }
+  sub5.surr.df <- cbind(sub5.surr.df, surr.ts)
+}
+sub5.surr.df <- as.data.frame(sub5.surr.df[seq(3, 120, 3), ])
+
+## Subpopulation 6
+sub6.surr.df <- c()
+for (i in 1:1000){
+  x.prev <- 0
+  seeds <- all.seeds[ , i]
+  surr.ts <- c(x.prev)
+  for (j in 1:119){
+    set.seed(seeds[j])
+    x.next <- AR.func(x.prev = x.prev, mu = sub6.ts.mean, v = sub6.ts.var, ac = sub6.ts.ac)
+    surr.ts <- c(surr.ts, x.next)
+    x.prev <- x.next
+  }
+  sub6.surr.df <- cbind(sub6.surr.df, surr.ts)
+}
+sub6.surr.df <- as.data.frame(sub6.surr.df[seq(3, 120, 3), ])
+
+## Subpopulation 7
+sub7.surr.df <- c()
+for (i in 1:1000){
+  x.prev <- 0
+  seeds <- all.seeds[ , i]
+  surr.ts <- c(x.prev)
+  for (j in 1:119){
+    set.seed(seeds[j])
+    x.next <- AR.func(x.prev = x.prev, mu = sub7.ts.mean, v = sub7.ts.var, ac = sub7.ts.ac)
+    surr.ts <- c(surr.ts, x.next)
+    x.prev <- x.next
+  }
+  sub7.surr.df <- cbind(sub7.surr.df, surr.ts)
+}
+sub7.surr.df <- as.data.frame(sub7.surr.df[seq(3, 120, 3), ])
+
+## Subpopulation 8
+sub8.surr.df <- c()
+for (i in 1:1000){
+  x.prev <- 0
+  seeds <- all.seeds[ , i]
+  surr.ts <- c(x.prev)
+  for (j in 1:119){
+    set.seed(seeds[j])
+    x.next <- AR.func(x.prev = x.prev, mu = sub8.ts.mean, v = sub8.ts.var, ac = sub8.ts.ac)
+    surr.ts <- c(surr.ts, x.next)
+    x.prev <- x.next
+  }
+  sub8.surr.df <- cbind(sub8.surr.df, surr.ts)
+}
+sub8.surr.df <- as.data.frame(sub8.surr.df[seq(3, 120, 3), ])
+```
+
+Plotting a few surrogates from each population:
+
+```{r}
+cols <- c("red3", "orange", "goldenrod1", "forestgreen", "royalblue2", "orchid")
+
+par(mfrow = c(2, 4))
+
+## Subpopulation 1
+plot(seq(3, 120, 3), sub1$status.sum, type = "l", lwd = 2,
+     main = "Subpopulation 1", xlab = "Day", ylab = "Prevalence", ylim = c(0, 2))
+for (i in 1:6){
+  lines(seq(3, 120, 3), sub1.surr.df[ , i], col = cols[i])
+}
+abline(v = 60, lty = 2, lwd = 2)
+
+## Subpopulation 2
+plot(seq(3, 120, 3), sub2$status.sum, type = "l", lwd = 2,
+     main = "Subpopulation 2", xlab = "Day", ylab = "Prevalence", ylim = c(0, 2))
+for (i in 1:6){
+  lines(seq(3, 120, 3), sub2.surr.df[ , i], col = cols[i])
+}
+abline(v = 60, lty = 2, lwd = 2)
+
+## Subpopulation 3
+plot(seq(3, 120, 3), sub3$status.sum, type = "l", lwd = 2,
+     main = "Subpopulation 3", xlab = "Day", ylab = "Prevalence", ylim = c(0, 2))
+for (i in 1:6){
+  lines(seq(3, 120, 3), sub3.surr.df[ , i], col = cols[i])
+}
+abline(v = 60, lty = 2, lwd = 2)
+
+## Subpopulation 4
+plot(seq(3, 120, 3), sub4$status.sum, type = "l", lwd = 2,
+     main = "Subpopulation 4", xlab = "Day", ylab = "Prevalence", ylim = c(0, 2))
+for (i in 1:6){
+  lines(seq(3, 120, 3), sub4.surr.df[ , i], col = cols[i])
+}
+abline(v = 60, lty = 2, lwd = 2)
+
+## Subpopulation 5
+plot(seq(3, 120, 3), sub5$status.sum, type = "l", lwd = 2,
+     main = "Subpopulation 5", xlab = "Day", ylab = "Prevalence", ylim = c(0, 5))
+for (i in 1:6){
+  lines(seq(3, 120, 3), sub5.surr.df[ , i], col = cols[i])
+}
+abline(v = 60, lty = 2, lwd = 2)
+
+## Subpopulation 6
+plot(seq(3, 120, 3), sub6$status.sum, type = "l", lwd = 2,
+     main = "Subpopulation 6", xlab = "Day", ylab = "Prevalence", ylim = c(0, 5))
+for (i in 1:6){
+  lines(seq(3, 120, 3), sub6.surr.df[ , i], col = cols[i])
+}
+abline(v = 60, lty = 2, lwd = 2)
+
+## Subpopulation 7
+plot(seq(3, 120, 3), sub7$status.sum, type = "l", lwd = 2,
+     main = "Subpopulation 7", xlab = "Day", ylab = "Prevalence", ylim = c(0, 5))
+for (i in 1:6){
+  lines(seq(3, 120, 3), sub7.surr.df[ , i], col = cols[i])
+}
+abline(v = 60, lty = 2, lwd = 2)
+
+## Subpopulation 8
+plot(seq(3, 120, 3), sub8$status.sum, type = "l", lwd = 2,
+     main = "Subpopulation 8", xlab = "Day", ylab = "Prevalence", ylim = c(0, 5))
+for (i in 1:6){
+  lines(seq(3, 120, 3), sub8.surr.df[ , i], col = cols[i])
+}
+abline(v = 60, lty = 2, lwd = 2)
+```
+
+## Data Wrangling
+
+```{r}
+sub1.surr.null <- as.list(sub1.surr.df[1:20, ])
+sub2.surr.null <- as.list(sub2.surr.df[1:20, ])
+sub3.surr.null <- as.list(sub3.surr.df[1:20, ])
+sub4.surr.null <- as.list(sub4.surr.df[1:20, ])
+sub5.surr.null <- as.list(sub5.surr.df[1:20, ])
+sub6.surr.null <- as.list(sub6.surr.df[1:20, ])
+sub7.surr.null <- as.list(sub7.surr.df[1:20, ])
+sub8.surr.null <- as.list(sub8.surr.df[1:20, ])
+```
+
+## Calculating Metrics
+
+### Mean, Standard Deviation
+
+```{r}
+sub1.surr.null.mean <- list(); sub1.surr.null.sd <- list()
+sub2.surr.null.mean <- list(); sub2.surr.null.sd <- list()
+sub3.surr.null.mean <- list(); sub3.surr.null.sd <- list()
+sub4.surr.null.mean <- list(); sub4.surr.null.sd <- list()
+sub5.surr.null.mean <- list(); sub5.surr.null.sd <- list()
+sub6.surr.null.mean <- list(); sub6.surr.null.sd <- list()
+sub7.surr.null.mean <- list(); sub7.surr.null.sd <- list()
+sub8.surr.null.mean <- list(); sub8.surr.null.sd <- list()
+
+for (i in 1:length(sub1.surr.null)){
+  sub1.surr.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub1.surr.null[[i]], window = 5, step = 1)
+  sub1.surr.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub1.surr.null[[i]], window = 5, step = 1)
+  
+  sub2.surr.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub2.surr.null[[i]], window = 5, step = 1)
+  sub2.surr.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub2.surr.null[[i]], window = 5, step = 1)
+  
+  sub3.surr.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub3.surr.null[[i]], window = 5, step = 1)
+  sub3.surr.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub3.surr.null[[i]], window = 5, step = 1)
+  
+  sub4.surr.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub4.surr.null[[i]], window = 5, step = 1)
+  sub4.surr.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub4.surr.null[[i]], window = 5, step = 1)
+  
+  sub5.surr.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub5.surr.null[[i]], window = 5, step = 1)
+  sub5.surr.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub5.surr.null[[i]], window = 5, step = 1)
+  
+  sub6.surr.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub6.surr.null[[i]], window = 5, step = 1)
+  sub6.surr.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub6.surr.null[[i]], window = 5, step = 1)
+  
+  sub7.surr.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub7.surr.null[[i]], window = 5, step = 1)
+  sub7.surr.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub7.surr.null[[i]], window = 5, step = 1)
+  
+  sub8.surr.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub8.surr.null[[i]], window = 5, step = 1)
+  sub8.surr.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub8.surr.null[[i]], window = 5, step = 1)
+}
+```
+
+### Variance
+
+```{r}
+sub1.surr.null.var <- list(); sub2.surr.null.var <- list(); sub3.surr.null.var <- list(); sub4.surr.null.var <- list()
+sub5.surr.null.var <- list(); sub6.surr.null.var <- list(); sub7.surr.null.var <- list(); sub8.surr.null.var <- list()
+for (i in 1:1000){
+  sub1.surr.null.var[[i]] <- sub1.surr.null.sd[[i]]^2
+  sub2.surr.null.var[[i]] <- sub2.surr.null.sd[[i]]^2
+  sub3.surr.null.var[[i]] <- sub3.surr.null.sd[[i]]^2
+  sub4.surr.null.var[[i]] <- sub4.surr.null.sd[[i]]^2
+  sub5.surr.null.var[[i]] <- sub5.surr.null.sd[[i]]^2
+  sub6.surr.null.var[[i]] <- sub6.surr.null.sd[[i]]^2
+  sub7.surr.null.var[[i]] <- sub7.surr.null.sd[[i]]^2
+  sub8.surr.null.var[[i]] <- sub8.surr.null.sd[[i]]^2
+}
+```
+
+### Index of Dispersion
+
+```{r}
+sub1.surr.null.id <- list(); sub2.surr.null.id <- list(); sub3.surr.null.id <- list(); sub4.surr.null.id <- list()
+sub5.surr.null.id <- list(); sub6.surr.null.id <- list(); sub7.surr.null.id <- list(); sub8.surr.null.id <- list()
+for (i in 1:1000){
+  sub1.surr.null.id[[i]] <- sub1.surr.null.var[[i]]/(sub1.surr.null.mean[[i]] + 1e-10)
+  sub2.surr.null.id[[i]] <- sub2.surr.null.var[[i]]/(sub2.surr.null.mean[[i]] + 1e-10)
+  sub3.surr.null.id[[i]] <- sub3.surr.null.var[[i]]/(sub3.surr.null.mean[[i]] + 1e-10)
+  sub4.surr.null.id[[i]] <- sub4.surr.null.var[[i]]/(sub4.surr.null.mean[[i]] + 1e-10)
+  sub5.surr.null.id[[i]] <- sub5.surr.null.var[[i]]/(sub5.surr.null.mean[[i]] + 1e-10)
+  sub6.surr.null.id[[i]] <- sub6.surr.null.var[[i]]/(sub6.surr.null.mean[[i]] + 1e-10)
+  sub7.surr.null.id[[i]] <- sub7.surr.null.var[[i]]/(sub7.surr.null.mean[[i]] + 1e-10)
+  sub8.surr.null.id[[i]] <- sub8.surr.null.var[[i]]/(sub8.surr.null.mean[[i]] + 1e-10)
+}
+```
+
+## Kendall's Tau
+
+### Mean
+
+```{r}
+sub1.surr.null.mean.taus <- c(); sub2.surr.null.mean.taus <- c(); sub3.surr.null.mean.taus <- c(); sub4.surr.null.mean.taus <- c()
+sub5.surr.null.mean.taus <- c(); sub6.surr.null.mean.taus <- c(); sub7.surr.null.mean.taus <- c(); sub8.surr.null.mean.taus <- c()
+t <- seq(1, 15, 1)
+for (i in 1:1000){
+  sub1.surr.null.mean.taus[i] <- cor(sub1.surr.null.mean[[i]], t, method = "kendall")
+  sub2.surr.null.mean.taus[i] <- cor(sub2.surr.null.mean[[i]], t, method = "kendall")
+  sub3.surr.null.mean.taus[i] <- cor(sub3.surr.null.mean[[i]], t, method = "kendall")
+  sub4.surr.null.mean.taus[i] <- cor(sub4.surr.null.mean[[i]], t, method = "kendall")
+  sub5.surr.null.mean.taus[i] <- cor(sub5.surr.null.mean[[i]], t, method = "kendall")
+  sub6.surr.null.mean.taus[i] <- cor(sub6.surr.null.mean[[i]], t, method = "kendall")
+  sub7.surr.null.mean.taus[i] <- cor(sub7.surr.null.mean[[i]], t, method = "kendall")
+  sub8.surr.null.mean.taus[i] <- cor(sub8.surr.null.mean[[i]], t, method = "kendall")
+}
+```
+
+### Variance
+
+```{r}
+sub1.surr.null.var.taus <- c(); sub2.surr.null.var.taus <- c(); sub3.surr.null.var.taus <- c(); sub4.surr.null.var.taus <- c()
+sub5.surr.null.var.taus <- c(); sub6.surr.null.var.taus <- c(); sub7.surr.null.var.taus <- c(); sub8.surr.null.var.taus <- c()
+t <- seq(1, 15, 1)
+for (i in 1:1000){
+  sub1.surr.null.var.taus[i] <- cor(sub1.surr.null.var[[i]], t, method = "kendall")
+  sub2.surr.null.var.taus[i] <- cor(sub2.surr.null.var[[i]], t, method = "kendall")
+  sub3.surr.null.var.taus[i] <- cor(sub3.surr.null.var[[i]], t, method = "kendall")
+  sub4.surr.null.var.taus[i] <- cor(sub4.surr.null.var[[i]], t, method = "kendall")
+  sub5.surr.null.var.taus[i] <- cor(sub5.surr.null.var[[i]], t, method = "kendall")
+  sub6.surr.null.var.taus[i] <- cor(sub6.surr.null.var[[i]], t, method = "kendall")
+  sub7.surr.null.var.taus[i] <- cor(sub7.surr.null.var[[i]], t, method = "kendall")
+  sub8.surr.null.var.taus[i] <- cor(sub8.surr.null.var[[i]], t, method = "kendall")
+}
+```
+
+### Index of Dispersion
+
+```{r}
+sub1.surr.null.id.taus <- c(); sub2.surr.null.id.taus <- c(); sub3.surr.null.id.taus <- c(); sub4.surr.null.id.taus <- c()
+sub5.surr.null.id.taus <- c(); sub6.surr.null.id.taus <- c(); sub7.surr.null.id.taus <- c(); sub8.surr.null.id.taus <- c()
+t <- seq(1, 15, 1)
+for (i in 1:1000){
+  sub1.surr.null.id.taus[i] <- cor(sub1.surr.null.id[[i]], t, method = "kendall")
+  sub2.surr.null.id.taus[i] <- cor(sub2.surr.null.id[[i]], t, method = "kendall")
+  sub3.surr.null.id.taus[i] <- cor(sub3.surr.null.id[[i]], t, method = "kendall")
+  sub4.surr.null.id.taus[i] <- cor(sub4.surr.null.id[[i]], t, method = "kendall")
+  sub5.surr.null.id.taus[i] <- cor(sub5.surr.null.id[[i]], t, method = "kendall")
+  sub6.surr.null.id.taus[i] <- cor(sub6.surr.null.id[[i]], t, method = "kendall")
+  sub7.surr.null.id.taus[i] <- cor(sub7.surr.null.id[[i]], t, method = "kendall")
+  sub8.surr.null.id.taus[i] <- cor(sub8.surr.null.id[[i]], t, method = "kendall")
+}
+```
+
+## Plotting
+
+```{r}
+subpop <- c(rep("1", 1000), rep("2", 1000), rep("3", 1000), rep("4", 1000), rep("5", 1000), rep("6", 1000), rep("7", 1000), rep("8", 1000))
+real.tau <- c(rep(sub1.mean.tau, 1000), rep(sub2.mean.tau, 1000), rep(sub3.mean.tau, 1000), rep(sub4.mean.tau, 1000), rep(sub5.mean.tau, 1000), rep(sub6.mean.tau, 1000), rep(sub7.mean.tau, 1000), rep(sub8.mean.tau, 1000))
+null.mean.taus <- c(sub1.surr.null.mean.taus, sub2.surr.null.mean.taus, sub3.surr.null.mean.taus, sub4.surr.null.mean.taus, sub5.surr.null.mean.taus, sub6.surr.null.mean.taus, sub7.surr.null.mean.taus, sub8.surr.null.mean.taus)
+null.mean.taus.df <- data.frame(
+  subpop = subpop, 
+  real.tau = real.tau,
+  null.mean.taus = null.mean.taus
+)
+
+cols <- c(rep("#1434A4", 4000), rep("#C21E56", 4000))
+
+ggplot(null.mean.taus.df, aes(x = subpop, y = null.mean.taus)) + 
+  geom_violin() +
+  geom_jitter(height = 0, width = 0.2, colour = cols, alpha = 0.1) +
+  geom_point(aes(y = real.tau), size = 4, shape = 8) + 
+  stat_summary(fun.y = median, geom = "point", size = 4, colour = "black", shape = 16) +
+  xlab("Subpopulation") +
+  ylab("Kendall's Tau (Mean)") +
+  theme(axis.text.x = element_text(colour = "black"),
+        text = element_text(size = 12)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+```
+
+```{r}
+subpop <- c(rep("1", 1000), rep("2", 1000), rep("3", 1000), rep("4", 1000), rep("5", 1000), rep("6", 1000), rep("7", 1000), rep("8", 1000))
+real.tau <- c(rep(sub1.var.tau, 1000), rep(sub2.var.tau, 1000), rep(sub3.var.tau, 1000), rep(sub4.var.tau, 1000), rep(sub5.var.tau, 1000), rep(sub6.var.tau, 1000), rep(sub7.var.tau, 1000), rep(sub8.var.tau, 1000))
+null.var.taus <- c(sub1.surr.null.var.taus, sub2.surr.null.var.taus, sub3.surr.null.var.taus, sub4.surr.null.var.taus, sub5.surr.null.var.taus, sub6.surr.null.var.taus, sub7.surr.null.var.taus, sub8.surr.null.var.taus)
+null.var.taus.df <- data.frame(
+  subpop = subpop, 
+  real.tau = real.tau,
+  null.var.taus = null.var.taus
+)
+
+cols <- c(rep("#1434A4", 4000), rep("#C21E56", 4000))
+
+ggplot(null.var.taus.df, aes(x = subpop, y = null.var.taus)) + 
+  geom_violin() +
+  geom_jitter(height = 0, width = 0.2, colour = cols, alpha = 0.1) +
+  geom_point(aes(y = real.tau), size = 4, shape = 8) + 
+  stat_summary(fun.y = median, geom = "point", size = 4, colour = "black", shape = 16) +
+  xlab("Subpopulation") +
+  ylab("Kendall's Tau (Variance)") +
+  theme(axis.text.x = element_text(colour = "black"),
+        text = element_text(size = 12)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+```
+
+```{r}
+subpop <- c(rep("1", 1000), rep("2", 1000), rep("3", 1000), rep("4", 1000), rep("5", 1000), rep("6", 1000), rep("7", 1000), rep("8", 1000))
+real.tau <- c(rep(sub1.id.tau, 1000), rep(sub2.id.tau, 1000), rep(sub3.id.tau, 1000), rep(sub4.id.tau, 1000), rep(sub5.id.tau, 1000), rep(sub6.id.tau, 1000), rep(sub7.id.tau, 1000), rep(sub8.id.tau, 1000))
+null.id.taus <- c(sub1.surr.null.id.taus, sub2.surr.null.id.taus, sub3.surr.null.id.taus, sub4.surr.null.id.taus, sub5.surr.null.id.taus, sub6.surr.null.id.taus, sub7.surr.null.id.taus, sub8.surr.null.id.taus)
+null.id.taus.df <- data.frame(
+  subpop = subpop, 
+  real.tau = real.tau,
+  null.id.taus = null.id.taus
+)
+
+cols <- c(rep("#1434A4", 4000), rep("#C21E56", 4000))
+
+ggplot(null.id.taus.df, aes(x = subpop, y = null.id.taus)) + 
+  geom_violin() +
+  geom_jitter(height = 0, width = 0.2, colour = cols, alpha = 0.1) +
+  geom_point(aes(y = real.tau), size = 4, shape = 8) + 
+  stat_summary(fun.y = median, geom = "point", size = 4, colour = "black", shape = 16) +
+  xlab("Subpopulation") +
+  ylab("Kendall's Tau (Index of Dispersion") +
+  theme(axis.text.x = element_text(colour = "black"),
+        text = element_text(size = 12)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+```
+
+```{r}
+## Mean
+surr.null.mean.taus <- list(
+  sub1.surr.null.mean.taus,
+  sub2.surr.null.mean.taus,
+  sub3.surr.null.mean.taus,
+  sub4.surr.null.mean.taus,
+  sub5.surr.null.mean.taus,
+  sub6.surr.null.mean.taus,
+  sub7.surr.null.mean.taus,
+  sub8.surr.null.mean.taus
+)
+cols <- c(rep("#A7C7E7", 4), rep("#F6799D", 4))
+mains <- c("pop1.mean", "pop2.mean", "pop3.mean", "pop4.mean", "pop5.mean", "pop6.mean", "pop7.mean", "pop8.mean")
+true.taus <- c(constant.mean.tau, warming.mean.tau)
+vline.cols <- c(rep("#1434A4", 4), rep("#C21E56", 4))
+par(mfrow = c(2, 4))
+for (i in 1:8){
+  hist(surr.null.mean.taus[[i]], 
+     col = cols[i], border = cols[i],
+     xlim = c(-1, 1), ylim = c(1, 200),
+     main = mains[i], xlab = "")
+  abline(v = true.taus[i], col = vline.cols[i], lwd = 2)
+}
+
+## Variance
+surr.null.var.taus <- list(
+  sub1.surr.null.var.taus,
+  sub2.surr.null.var.taus,
+  sub3.surr.null.var.taus,
+  sub4.surr.null.var.taus,
+  sub5.surr.null.var.taus,
+  sub6.surr.null.var.taus,
+  sub7.surr.null.var.taus,
+  sub8.surr.null.var.taus
+)
+cols <- c(rep("#A7C7E7", 4), rep("#F6799D", 4))
+mains <- c("pop1.var", "pop2.var", "pop3.var", "pop4.var", "pop5.var", "pop6.var", "pop7.var", "pop8.var")
+true.taus <- c(constant.var.tau, warming.var.tau)
+vline.cols <- c(rep("#1434A4", 4), rep("#C21E56", 4))
+par(mfrow = c(2, 4))
+for (i in 1:8){
+  hist(surr.null.var.taus[[i]], 
+     col = cols[i], border = cols[i],
+     xlim = c(-1, 1), ylim = c(1, 200),
+     main = mains[i], xlab = "")
+  abline(v = true.taus[i], col = vline.cols[i], lwd = 2)
+}
+
+## Index of Dispersion
+surr.null.id.taus <- list(
+  sub1.surr.null.id.taus,
+  sub2.surr.null.id.taus,
+  sub3.surr.null.id.taus,
+  sub4.surr.null.id.taus,
+  sub5.surr.null.id.taus,
+  sub6.surr.null.id.taus,
+  sub7.surr.null.id.taus,
+  sub8.surr.null.id.taus
+)
+cols <- c(rep("#A7C7E7", 4), rep("#F6799D", 4))
+mains <- c("pop1.id", "pop2.id", "pop3.id", "pop4.id", "pop5.id", "pop6.id", "pop7.id", "pop8.id")
+true.taus <- c(constant.id.tau, warming.id.tau)
+vline.cols <- c(rep("#1434A4", 4), rep("#C21E56", 4))
+par(mfrow = c(2, 4))
+for (i in 1:8){
+  hist(surr.null.id.taus[[i]], 
+     col = cols[i], border = cols[i],
+     xlim = c(-1, 1), ylim = c(1, 200),
+     main = mains[i], xlab = "")
+  abline(v = true.taus[i], col = vline.cols[i], lwd = 2)
+}
+```
+
+## Calculating *p*-Values
+
+```{r}
+## Mean
+true.taus <- c(constant.mean.tau, warming.mean.tau)
+mean.p.vals <- c()
+for (i in 1:8){
+  mean.p.vals[i] <- length(which(surr.null.mean.taus[[i]] >= true.taus[i]))/1000
+}
+
+## Variance
+true.taus <- c(constant.var.tau, warming.var.tau)
+var.p.vals <- c()
+for (i in 1:8){
+  var.p.vals[i] <- length(which(surr.null.var.taus[[i]] >= true.taus[i]))/1000
+}
+
+## Index of Dispersion
+true.taus <- c(constant.id.tau, warming.id.tau)
+id.p.vals <- c()
+for (i in 1:8){
+  id.p.vals[i] <- length(which(surr.null.id.taus[[i]] >= true.taus[i]))/1000
+}
+
+p.vals <- data.frame(
+  mean = mean.p.vals,
+  var = var.p.vals,
+  id = id.p.vals
+)
+rownames(p.vals) <- c("constant.1", "constant.2", "constant.3", "constant.4", "warming.1", "warming.2", "warming.3", "warming.4")
+x.labs <- c("Mean", "Variance", "Index of Dispersion")
+plot(x = 1, type = "n", xaxt = "n", yaxt = "n", 
+     main = "P-Values Per Surrogate Time Series (AR(1) Model)", xlab = "", ylab = "P-Value",
+     xlim = c(1, 3), ylim = c(0, 1))
+text(1:3, p.vals[1, ], label = 1, col = alpha("#1434A4", 0.5))
+text(1:3, p.vals[2, ], label = 2, col = alpha("#1434A4", 0.5))
+text(1:3, p.vals[3, ], label = 3, col = alpha("#1434A4", 0.5))
+text(1:3, p.vals[4, ], label = 4, col = alpha("#1434A4", 0.5))
+text(1:3, p.vals[5, ], label = 5, col = alpha("#C21E56", 0.5))
+text(1:3, p.vals[6, ], label = 6, col = alpha("#C21E56", 0.5))
+text(1:3, p.vals[7, ], label = 7, col = alpha("#C21E56", 0.5))
+text(1:3, p.vals[8, ], label = 8, col = alpha("#C21E56", 0.5))
+abline(h = 0.05, lty = 3)
+axis(1, at = 1:3, labels = x.labs)
+axis(2, at = c(0, 1))
+legend("topright", legend = c("Constant Tempertaure", "Rising Temperature"),
+       pch = 19, col = c("#1434A4", "#C21E56"), cex = 0.8, bty = "n")
+```
+
+## Saving Nulls
+
+```{r}
+subpops <- c(rep(1, 1000), rep(2, 1000), rep(3, 1000), rep(4, 1000), rep(5, 1000), rep(6, 1000), rep(7, 1000), rep(8, 1000))
+
+ar.mean.taus <- data.frame(subpops, null.mean.taus)
+ar.mean.taus.CIs <- c(); j = 1; k = 1000
+for (i in 1:8){
+  ar.mean.taus.CIs[i] <- quantile(ar.mean.taus[j:k, 2], probs = c(0.95), na.rm = TRUE)
+  j = j + 1000; k = k + 1000
+}
+
+ar.var.taus <- data.frame(subpops, null.var.taus)
+ar.var.taus.CIs <- c(); j = 1; k = 1000
+for (i in 1:8){
+  ar.var.taus.CIs[i] <- quantile(ar.var.taus[j:k, 2], probs = c(0.95), na.rm = TRUE)
+  j = j + 1000; k = k + 1000
+}
+
+ar.id.taus <- data.frame(subpops, null.id.taus)
+ar.id.taus.CIs <- c(); j = 1; k = 1000
+for (i in 1:8){
+  ar.id.taus.CIs[i] <- quantile(ar.id.taus[j:k, 2], probs = c(0.95), na.rm = TRUE)
+  j = j + 1000; k = k + 1000
+}
+
+ar.mean.pvals <- p.vals$mean
+ar.var.pvals <- p.vals$var
+ar.id.pvals <- p.vals$id
+```
+
+# (4) AR Poisson Process with Poisson Distribution
+
+From Theiler et al. 1992:
+
+$x_t = \alpha_0 + \alpha_1 x_{t-1} + \sigma e_t$
+
+Where:
+
+$\alpha_1 = A(1)$
+
+$\alpha_0 = \mu (1-\alpha_1)$
+
+$\sigma^2 = v(1-\alpha_1^2)$
+
+$e_t$ is given by a Gaussian pseudorandom number generator
+
+## Compiling Model
+
+```{r}
+model <- stan_model("10_SigTesting.stan")
+```
+
+## Fitting AR Model in Stan
+
+```{r}
+# Data
+N <- 20
+
+y1 <- sub1$status.sum[1:20]
+y2 <- sub2$status.sum[1:20]
+y3 <- sub3$status.sum[1:20]
+y4 <- sub4$status.sum[1:20]
+y5 <- sub5$status.sum[1:20]
+y6 <- sub6$status.sum[1:20]
+y7 <- sub7$status.sum[1:20]
+y8 <- sub8$status.sum[1:20]
+
+y <- y1
+pop1.data <- list(N = N, y = y)
+
+y <- y2
+pop2.data <- list(N = N, y = y)
+
+y <- y3
+pop3.data <- list(N = N, y = y)
+
+y <- y4
+pop4.data <- list(N = N, y = y)
+
+y <- y5
+pop5.data <- list(N = N, y = y)
+
+y <- y6
+pop6.data <- list(N = N, y = y)
+
+y <- y7
+pop7.data <- list(N = N, y = y)
+
+y <- y8
+pop8.data <- list(N = N, y = y)
+
+# Fitting
+pop1.fit <- rstan::sampling(model, data = pop1.data, chains = 4, iter = 4000, cores = 4, seed = 123, verbose = FALSE)
+pop2.fit <- rstan::sampling(model, data = pop2.data, chains = 4, iter = 4000, cores = 4, seed = 123, verbose = FALSE)
+pop3.fit <- rstan::sampling(model, data = pop3.data, chains = 4, iter = 4000, cores = 4, seed = 123, verbose = FALSE)
+pop4.fit <- rstan::sampling(model, data = pop4.data, chains = 4, iter = 4000, cores = 4, seed = 123, verbose = FALSE)
+pop5.fit <- rstan::sampling(model, data = pop5.data, chains = 4, iter = 4000, cores = 4, seed = 123, verbose = FALSE)
+pop6.fit <- rstan::sampling(model, data = pop6.data, chains = 4, iter = 4000, cores = 4, seed = 123, verbose = FALSE)
+pop7.fit <- rstan::sampling(model, data = pop7.data, chains = 4, iter = 4000, cores = 4, seed = 123, verbose = FALSE)
+pop8.fit <- rstan::sampling(model, data = pop8.data, chains = 4, iter = 4000, cores = 4, seed = 123, verbose = FALSE)
+
+# Extract fit
+pop1.fit.ex <- rstan::extract(pop1.fit)
+pop2.fit.ex <- rstan::extract(pop2.fit)
+pop3.fit.ex <- rstan::extract(pop3.fit)
+pop4.fit.ex <- rstan::extract(pop4.fit)
+pop5.fit.ex <- rstan::extract(pop5.fit)
+pop6.fit.ex <- rstan::extract(pop6.fit)
+pop7.fit.ex <- rstan::extract(pop7.fit)
+pop8.fit.ex <- rstan::extract(pop8.fit)
+
+# Check out y_tilde
+y_tilde <- pop1.fit.ex$y_tilde
+length(which(y_tilde[ , 1] == 0)); init.zero <- which(y_tilde[ , 1] == 0); init.zero <- init.zero[1:1000]
+temp <- y_tilde[init.zero , ]
+# select.rows <- c(sample(nrow(y_tilde), 1000, replace = FALSE))
+sub1.surr.pois.null <- list()
+for(i in 1:1000){
+  sub1.surr.pois.null[[i]] <- as.numeric(temp[i, ])
+}
+
+y_tilde <- pop2.fit.ex$y_tilde
+length(which(y_tilde[ , 1] == 0)); init.zero <- which(y_tilde[ , 1] == 0); init.zero <- init.zero[1:1000]
+temp <- y_tilde[init.zero , ]
+# select.rows <- c(sample(nrow(y_tilde), 1000, replace = FALSE))
+sub2.surr.pois.null <- list()
+for(i in 1:1000){
+  sub2.surr.pois.null[[i]] <- as.numeric(temp[i, ])
+}
+
+y_tilde <- pop3.fit.ex$y_tilde
+length(which(y_tilde[ , 1] == 0)); init.zero <- which(y_tilde[ , 1] == 0); init.zero <- init.zero[1:1000]
+temp <- y_tilde[init.zero , ]
+# select.rows <- c(sample(nrow(y_tilde), 1000, replace = FALSE))
+sub3.surr.pois.null <- list()
+for(i in 1:1000){
+  sub3.surr.pois.null[[i]] <- as.numeric(temp[i, ])
+}
+
+y_tilde <- pop4.fit.ex$y_tilde
+length(which(y_tilde[ , 1] == 0)); init.zero <- which(y_tilde[ , 1] == 0); init.zero <- init.zero[1:1000]
+temp <- y_tilde[init.zero , ]
+# select.rows <- c(sample(nrow(y_tilde), 1000, replace = FALSE))
+sub4.surr.pois.null <- list()
+for(i in 1:1000){
+  sub4.surr.pois.null[[i]] <- as.numeric(temp[i, ])
+}
+
+y_tilde <- pop5.fit.ex$y_tilde
+length(which(y_tilde[ , 1] == 0)); init.zero <- which(y_tilde[ , 1] == 0); init.zero <- init.zero[1:1000]
+temp <- y_tilde[init.zero , ]
+# select.rows <- c(sample(nrow(y_tilde), 1000, replace = FALSE))
+sub5.surr.pois.null <- list()
+for(i in 1:1000){
+  sub5.surr.pois.null[[i]] <- as.numeric(temp[i, ])
+}
+
+y_tilde <- pop6.fit.ex$y_tilde
+length(which(y_tilde[ , 1] == 0)); init.zero <- which(y_tilde[ , 1] == 0); init.zero <- init.zero[1:1000]
+temp <- y_tilde[init.zero , ]
+# select.rows <- c(sample(nrow(y_tilde), 1000, replace = FALSE))
+sub6.surr.pois.null <- list()
+for(i in 1:1000){
+  sub6.surr.pois.null[[i]] <- as.numeric(temp[i, ])
+}
+
+y_tilde <- pop7.fit.ex$y_tilde
+length(which(y_tilde[ , 1] == 0)); init.zero <- which(y_tilde[ , 1] == 0); init.zero <- init.zero[1:1000]
+temp <- y_tilde[init.zero , ]
+# select.rows <- c(sample(nrow(y_tilde), 1000, replace = FALSE))
+sub7.surr.pois.null <- list()
+for(i in 1:1000){
+  sub7.surr.pois.null[[i]] <- as.numeric(temp[i, ])
+}
+
+y_tilde <- pop8.fit.ex$y_tilde
+length(which(y_tilde[ , 1] == 0)); init.zero <- which(y_tilde[ , 1] == 0); init.zero <- init.zero[1:1000]
+temp <- y_tilde[init.zero , ]
+# select.rows <- c(sample(nrow(y_tilde), 1000, replace = FALSE))
+sub8.surr.pois.null <- list()
+for(i in 1:1000){
+  sub8.surr.pois.null[[i]] <- as.numeric(temp[i, ])
+}
+```
+
+## Calculating Metrics
+
+### Mean, Standard Deviation
+
+```{r}
+sub1.surr.pois.null.mean <- list(); sub1.surr.pois.null.sd <- list()
+sub2.surr.pois.null.mean <- list(); sub2.surr.pois.null.sd <- list()
+sub3.surr.pois.null.mean <- list(); sub3.surr.pois.null.sd <- list()
+sub4.surr.pois.null.mean <- list(); sub4.surr.pois.null.sd <- list()
+sub5.surr.pois.null.mean <- list(); sub5.surr.pois.null.sd <- list()
+sub6.surr.pois.null.mean <- list(); sub6.surr.pois.null.sd <- list()
+sub7.surr.pois.null.mean <- list(); sub7.surr.pois.null.sd <- list()
+sub8.surr.pois.null.mean <- list(); sub8.surr.pois.null.sd <- list()
+
+for (i in 1:length(sub1.surr.pois.null)){
+  sub1.surr.pois.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub1.surr.pois.null[[i]], window = 5, step = 1)
+  sub1.surr.pois.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub1.surr.pois.null[[i]], window = 5, step = 1)
+  
+  sub2.surr.pois.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub2.surr.pois.null[[i]], window = 5, step = 1)
+  sub2.surr.pois.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub2.surr.pois.null[[i]], window = 5, step = 1)
+  
+  sub3.surr.pois.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub3.surr.pois.null[[i]], window = 5, step = 1)
+  sub3.surr.pois.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub3.surr.pois.null[[i]], window = 5, step = 1)
+  
+  sub4.surr.pois.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub4.surr.pois.null[[i]], window = 5, step = 1)
+  sub4.surr.pois.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub4.surr.pois.null[[i]], window = 5, step = 1)
+  
+  sub5.surr.pois.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub5.surr.pois.null[[i]], window = 5, step = 1)
+  sub5.surr.pois.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub5.surr.pois.null[[i]], window = 5, step = 1)
+  
+  sub6.surr.pois.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub6.surr.pois.null[[i]], window = 5, step = 1)
+  sub6.surr.pois.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub6.surr.pois.null[[i]], window = 5, step = 1)
+  
+  sub7.surr.pois.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub7.surr.pois.null[[i]], window = 5, step = 1)
+  sub7.surr.pois.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub7.surr.pois.null[[i]], window = 5, step = 1)
+  
+  sub8.surr.pois.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub8.surr.pois.null[[i]], window = 5, step = 1)
+  sub8.surr.pois.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub8.surr.pois.null[[i]], window = 5, step = 1)
+}
+```
+
+### Variance
+
+```{r}
+sub1.surr.pois.null.var <- list(); sub2.surr.pois.null.var <- list(); sub3.surr.pois.null.var <- list(); sub4.surr.pois.null.var <- list()
+sub5.surr.pois.null.var <- list(); sub6.surr.pois.null.var <- list(); sub7.surr.pois.null.var <- list(); sub8.surr.pois.null.var <- list()
+for (i in 1:1000){
+  sub1.surr.pois.null.var[[i]] <- sub1.surr.pois.null.sd[[i]]^2
+  sub2.surr.pois.null.var[[i]] <- sub2.surr.pois.null.sd[[i]]^2
+  sub3.surr.pois.null.var[[i]] <- sub3.surr.pois.null.sd[[i]]^2
+  sub4.surr.pois.null.var[[i]] <- sub4.surr.pois.null.sd[[i]]^2
+  sub5.surr.pois.null.var[[i]] <- sub5.surr.pois.null.sd[[i]]^2
+  sub6.surr.pois.null.var[[i]] <- sub6.surr.pois.null.sd[[i]]^2
+  sub7.surr.pois.null.var[[i]] <- sub7.surr.pois.null.sd[[i]]^2
+  sub8.surr.pois.null.var[[i]] <- sub8.surr.pois.null.sd[[i]]^2
+}
+```
+
+### Index of Dispersion
+
+```{r}
+sub1.surr.pois.null.id <- list(); sub2.surr.pois.null.id <- list(); sub3.surr.pois.null.id <- list(); sub4.surr.pois.null.id <- list()
+sub5.surr.pois.null.id <- list(); sub6.surr.pois.null.id <- list(); sub7.surr.pois.null.id <- list(); sub8.surr.pois.null.id <- list()
+for (i in 1:1000){
+  sub1.surr.pois.null.id[[i]] <- sub1.surr.pois.null.var[[i]]/(sub1.surr.pois.null.mean[[i]] + 1e-10)
+  sub2.surr.pois.null.id[[i]] <- sub2.surr.pois.null.var[[i]]/(sub2.surr.pois.null.mean[[i]] + 1e-10)
+  sub3.surr.pois.null.id[[i]] <- sub3.surr.pois.null.var[[i]]/(sub3.surr.pois.null.mean[[i]] + 1e-10)
+  sub4.surr.pois.null.id[[i]] <- sub4.surr.pois.null.var[[i]]/(sub4.surr.pois.null.mean[[i]] + 1e-10)
+  sub5.surr.pois.null.id[[i]] <- sub5.surr.pois.null.var[[i]]/(sub5.surr.pois.null.mean[[i]] + 1e-10)
+  sub6.surr.pois.null.id[[i]] <- sub6.surr.pois.null.var[[i]]/(sub6.surr.pois.null.mean[[i]] + 1e-10)
+  sub7.surr.pois.null.id[[i]] <- sub7.surr.pois.null.var[[i]]/(sub7.surr.pois.null.mean[[i]] + 1e-10)
+  sub8.surr.pois.null.id[[i]] <- sub8.surr.pois.null.var[[i]]/(sub8.surr.pois.null.mean[[i]] + 1e-10)
+}
+```
+
+## Kendall's Tau
+
+### Mean
+
+```{r}
+sub1.surr.pois.null.mean.taus <- c(); sub2.surr.pois.null.mean.taus <- c(); sub3.surr.pois.null.mean.taus <- c(); sub4.surr.pois.null.mean.taus <- c()
+sub5.surr.pois.null.mean.taus <- c(); sub6.surr.pois.null.mean.taus <- c(); sub7.surr.pois.null.mean.taus <- c(); sub8.surr.pois.null.mean.taus <- c()
+t <- seq(1, 15, 1)
+for (i in 1:1000){
+  sub1.surr.pois.null.mean.taus[i] <- cor(sub1.surr.pois.null.mean[[i]], t, method = "kendall")
+  sub2.surr.pois.null.mean.taus[i] <- cor(sub2.surr.pois.null.mean[[i]], t, method = "kendall")
+  sub3.surr.pois.null.mean.taus[i] <- cor(sub3.surr.pois.null.mean[[i]], t, method = "kendall")
+  sub4.surr.pois.null.mean.taus[i] <- cor(sub4.surr.pois.null.mean[[i]], t, method = "kendall")
+  sub5.surr.pois.null.mean.taus[i] <- cor(sub5.surr.pois.null.mean[[i]], t, method = "kendall")
+  sub6.surr.pois.null.mean.taus[i] <- cor(sub6.surr.pois.null.mean[[i]], t, method = "kendall")
+  sub7.surr.pois.null.mean.taus[i] <- cor(sub7.surr.pois.null.mean[[i]], t, method = "kendall")
+  sub8.surr.pois.null.mean.taus[i] <- cor(sub8.surr.pois.null.mean[[i]], t, method = "kendall")
+}
+```
+
+### Variance
+
+```{r}
+sub1.surr.pois.null.var.taus <- c(); sub2.surr.pois.null.var.taus <- c(); sub3.surr.pois.null.var.taus <- c(); sub4.surr.pois.null.var.taus <- c()
+sub5.surr.pois.null.var.taus <- c(); sub6.surr.pois.null.var.taus <- c(); sub7.surr.pois.null.var.taus <- c(); sub8.surr.pois.null.var.taus <- c()
+t <- seq(1, 15, 1)
+for (i in 1:1000){
+  sub1.surr.pois.null.var.taus[i] <- cor(sub1.surr.pois.null.var[[i]], t, method = "kendall")
+  sub2.surr.pois.null.var.taus[i] <- cor(sub2.surr.pois.null.var[[i]], t, method = "kendall")
+  sub3.surr.pois.null.var.taus[i] <- cor(sub3.surr.pois.null.var[[i]], t, method = "kendall")
+  sub4.surr.pois.null.var.taus[i] <- cor(sub4.surr.pois.null.var[[i]], t, method = "kendall")
+  sub5.surr.pois.null.var.taus[i] <- cor(sub5.surr.pois.null.var[[i]], t, method = "kendall")
+  sub6.surr.pois.null.var.taus[i] <- cor(sub6.surr.pois.null.var[[i]], t, method = "kendall")
+  sub7.surr.pois.null.var.taus[i] <- cor(sub7.surr.pois.null.var[[i]], t, method = "kendall")
+  sub8.surr.pois.null.var.taus[i] <- cor(sub8.surr.pois.null.var[[i]], t, method = "kendall")
+}
+```
+
+### Index of Dispersion
+
+```{r}
+sub1.surr.pois.null.id.taus <- c(); sub2.surr.pois.null.id.taus <- c(); sub3.surr.pois.null.id.taus <- c(); sub4.surr.pois.null.id.taus <- c()
+sub5.surr.pois.null.id.taus <- c(); sub6.surr.pois.null.id.taus <- c(); sub7.surr.pois.null.id.taus <- c(); sub8.surr.pois.null.id.taus <- c()
+t <- seq(1, 15, 1)
+for (i in 1:1000){
+  sub1.surr.pois.null.id.taus[i] <- cor(sub1.surr.pois.null.id[[i]], t, method = "kendall")
+  sub2.surr.pois.null.id.taus[i] <- cor(sub2.surr.pois.null.id[[i]], t, method = "kendall")
+  sub3.surr.pois.null.id.taus[i] <- cor(sub3.surr.pois.null.id[[i]], t, method = "kendall")
+  sub4.surr.pois.null.id.taus[i] <- cor(sub4.surr.pois.null.id[[i]], t, method = "kendall")
+  sub5.surr.pois.null.id.taus[i] <- cor(sub5.surr.pois.null.id[[i]], t, method = "kendall")
+  sub6.surr.pois.null.id.taus[i] <- cor(sub6.surr.pois.null.id[[i]], t, method = "kendall")
+  sub7.surr.pois.null.id.taus[i] <- cor(sub7.surr.pois.null.id[[i]], t, method = "kendall")
+  sub8.surr.pois.null.id.taus[i] <- cor(sub8.surr.pois.null.id[[i]], t, method = "kendall")
+}
+```
+
+## Plotting
+
+```{r}
+subpop <- c(rep("1", 1000), rep("2", 1000), rep("3", 1000), rep("4", 1000), rep("5", 1000), rep("6", 1000), rep("7", 1000), rep("8", 1000))
+real.tau <- c(rep(sub1.mean.tau, 1000), rep(sub2.mean.tau, 1000), rep(sub3.mean.tau, 1000), rep(sub4.mean.tau, 1000), rep(sub5.mean.tau, 1000), rep(sub6.mean.tau, 1000), rep(sub7.mean.tau, 1000), rep(sub8.mean.tau, 1000))
+null.mean.taus <- c(sub1.surr.pois.null.mean.taus, sub2.surr.pois.null.mean.taus, sub3.surr.pois.null.mean.taus, sub4.surr.pois.null.mean.taus, sub5.surr.pois.null.mean.taus, sub6.surr.pois.null.mean.taus, sub7.surr.pois.null.mean.taus, sub8.surr.pois.null.mean.taus)
+null.mean.taus.df <- data.frame(
+  subpop = subpop, 
+  real.tau = real.tau,
+  null.mean.taus = null.mean.taus
+)
+
+cols <- c(rep("#1434A4", 4000), rep("#C21E56", 4000))
+
+ggplot(null.mean.taus.df, aes(x = subpop, y = null.mean.taus)) + 
+  geom_violin() +
+  geom_jitter(height = 0, width = 0.2, colour = cols, alpha = 0.1) +
+  geom_point(aes(y = real.tau), size = 4, shape = 8) + 
+  stat_summary(fun.y = median, geom = "point", size = 4, colour = "black", shape = 16) +
+  xlab("Subpopulation") +
+  ylab("Kendall's Tau (Mean)") +
+  theme(axis.text.x = element_text(colour = "black"),
+        text = element_text(size = 12)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+```
+
+```{r}
+subpop <- c(rep("1", 1000), rep("2", 1000), rep("3", 1000), rep("4", 1000), rep("5", 1000), rep("6", 1000), rep("7", 1000), rep("8", 1000))
+real.tau <- c(rep(sub1.var.tau, 1000), rep(sub2.var.tau, 1000), rep(sub3.var.tau, 1000), rep(sub4.var.tau, 1000), rep(sub5.var.tau, 1000), rep(sub6.var.tau, 1000), rep(sub7.var.tau, 1000), rep(sub8.var.tau, 1000))
+null.var.taus <- c(sub1.surr.pois.null.var.taus, sub2.surr.pois.null.var.taus, sub3.surr.pois.null.var.taus, sub4.surr.pois.null.var.taus, sub5.surr.pois.null.var.taus, sub6.surr.pois.null.var.taus, sub7.surr.pois.null.var.taus, sub8.surr.pois.null.var.taus)
+null.var.taus.df <- data.frame(
+  subpop = subpop, 
+  real.tau = real.tau,
+  null.var.taus = null.var.taus
+)
+
+cols <- c(rep("#1434A4", 4000), rep("#C21E56", 4000))
+
+ggplot(null.var.taus.df, aes(x = subpop, y = null.var.taus)) + 
+  geom_violin() +
+  geom_jitter(height = 0, width = 0.2, colour = cols, alpha = 0.1) +
+  geom_point(aes(y = real.tau), size = 4, shape = 8) + 
+  stat_summary(fun.y = median, geom = "point", size = 4, colour = "black", shape = 16) +
+  xlab("Subpopulation") +
+  ylab("Kendall's Tau (Variance)") +
+  theme(axis.text.x = element_text(colour = "black"),
+        text = element_text(size = 12)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+```
+
+```{r}
+subpop <- c(rep("1", 1000), rep("2", 1000), rep("3", 1000), rep("4", 1000), rep("5", 1000), rep("6", 1000), rep("7", 1000), rep("8", 1000))
+real.tau <- c(rep(sub1.id.tau, 1000), rep(sub2.id.tau, 1000), rep(sub3.id.tau, 1000), rep(sub4.id.tau, 1000), rep(sub5.id.tau, 1000), rep(sub6.id.tau, 1000), rep(sub7.id.tau, 1000), rep(sub8.id.tau, 1000))
+null.id.taus <- c(sub1.surr.pois.null.id.taus, sub2.surr.pois.null.id.taus, sub3.surr.pois.null.id.taus, sub4.surr.pois.null.id.taus, sub5.surr.pois.null.id.taus, sub6.surr.pois.null.id.taus, sub7.surr.pois.null.id.taus, sub8.surr.pois.null.id.taus)
+null.id.taus.df <- data.frame(
+  subpop = subpop, 
+  real.tau = real.tau,
+  null.id.taus = null.id.taus
+)
+
+cols <- c(rep("#1434A4", 4000), rep("#C21E56", 4000))
+
+ggplot(null.id.taus.df, aes(x = subpop, y = null.id.taus)) + 
+  geom_violin() +
+  geom_jitter(height = 0, width = 0.2, colour = cols, alpha = 0.1) +
+  geom_point(aes(y = real.tau), size = 4, shape = 8) + 
+  stat_summary(fun.y = median, geom = "point", size = 4, colour = "black", shape = 16) +
+  xlab("Subpopulation") +
+  ylab("Kendall's Tau (Index of Dispersion") +
+  theme(axis.text.x = element_text(colour = "black"),
+        text = element_text(size = 12)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+```
+
+```{r}
+## Mean
+surr.pois.null.mean.taus <- list(
+  sub1.surr.pois.null.mean.taus,
+  sub2.surr.pois.null.mean.taus,
+  sub3.surr.pois.null.mean.taus,
+  sub4.surr.pois.null.mean.taus,
+  sub5.surr.pois.null.mean.taus,
+  sub6.surr.pois.null.mean.taus,
+  sub7.surr.pois.null.mean.taus,
+  sub8.surr.pois.null.mean.taus
+)
+cols <- c(rep("#A7C7E7", 4), rep("#F6799D", 4))
+mains <- c("pop1.mean", "pop2.mean", "pop3.mean", "pop4.mean", "pop5.mean", "pop6.mean", "pop7.mean", "pop8.mean")
+true.taus <- c(constant.mean.tau, warming.mean.tau)
+vline.cols <- c(rep("#1434A4", 4), rep("#C21E56", 4))
+par(mfrow = c(2, 4))
+for (i in 1:8){
+  hist(surr.pois.null.mean.taus[[i]], 
+     col = cols[i], border = cols[i],
+     xlim = c(-1, 1), ylim = c(1, 200),
+     main = mains[i], xlab = "")
+  abline(v = true.taus[i], col = vline.cols[i], lwd = 2)
+}
+
+## Variance
+surr.pois.null.var.taus <- list(
+  sub1.surr.pois.null.var.taus,
+  sub2.surr.pois.null.var.taus,
+  sub3.surr.pois.null.var.taus,
+  sub4.surr.pois.null.var.taus,
+  sub5.surr.pois.null.var.taus,
+  sub6.surr.pois.null.var.taus,
+  sub7.surr.pois.null.var.taus,
+  sub8.surr.pois.null.var.taus
+)
+cols <- c(rep("#A7C7E7", 4), rep("#F6799D", 4))
+mains <- c("pop1.var", "pop2.var", "pop3.var", "pop4.var", "pop5.var", "pop6.var", "pop7.var", "pop8.var")
+true.taus <- c(constant.var.tau, warming.var.tau)
+vline.cols <- c(rep("#1434A4", 4), rep("#C21E56", 4))
+par(mfrow = c(2, 4))
+for (i in 1:8){
+  hist(surr.pois.null.var.taus[[i]], 
+     col = cols[i], border = cols[i],
+     xlim = c(-1, 1), ylim = c(1, 200),
+     main = mains[i], xlab = "")
+  abline(v = true.taus[i], col = vline.cols[i], lwd = 2)
+}
+
+## Index of Dispersion
+surr.pois.null.id.taus <- list(
+  sub1.surr.pois.null.id.taus,
+  sub2.surr.pois.null.id.taus,
+  sub3.surr.pois.null.id.taus,
+  sub4.surr.pois.null.id.taus,
+  sub5.surr.pois.null.id.taus,
+  sub6.surr.pois.null.id.taus,
+  sub7.surr.pois.null.id.taus,
+  sub8.surr.pois.null.id.taus
+)
+cols <- c(rep("#A7C7E7", 4), rep("#F6799D", 4))
+mains <- c("pop1.id", "pop2.id", "pop3.id", "pop4.id", "pop5.id", "pop6.id", "pop7.id", "pop8.id")
+true.taus <- c(constant.id.tau, warming.id.tau)
+vline.cols <- c(rep("#1434A4", 4), rep("#C21E56", 4))
+par(mfrow = c(2, 4))
+for (i in 1:8){
+  hist(surr.pois.null.id.taus[[i]], 
+     col = cols[i], border = cols[i],
+     xlim = c(-1, 1), ylim = c(1, 200),
+     main = mains[i], xlab = "")
+  abline(v = true.taus[i], col = vline.cols[i], lwd = 2)
+}
+```
+
+## Calculating *p*-Values
+
+```{r}
+## Mean
+true.taus <- c(constant.mean.tau, warming.mean.tau)
+mean.p.vals <- c()
+for (i in 1:8){
+  mean.p.vals[i] <- length(which(surr.pois.null.mean.taus[[i]] >= true.taus[i]))/1000
+}
+
+## Variance
+true.taus <- c(constant.var.tau, warming.var.tau)
+var.p.vals <- c()
+for (i in 1:8){
+  var.p.vals[i] <- length(which(surr.pois.null.var.taus[[i]] >= true.taus[i]))/1000
+}
+
+## Index of Dispersion
+true.taus <- c(constant.id.tau, warming.id.tau)
+id.p.vals <- c()
+for (i in 1:8){
+  id.p.vals[i] <- length(which(surr.pois.null.id.taus[[i]] >= true.taus[i]))/1000
+}
+
+p.vals <- data.frame(
+  mean = mean.p.vals,
+  var = var.p.vals,
+  id = id.p.vals
+)
+rownames(p.vals) <- c("constant.1", "constant.2", "constant.3", "constant.4", "warming.1", "warming.2", "warming.3", "warming.4")
+x.labs <- c("Mean", "Variance", "Index of Dispersion")
+plot(x = 1, type = "n", xaxt = "n", yaxt = "n", 
+     main = "P-Values Per Surrogate Time Series (AR(1) Model)", xlab = "", ylab = "P-Value",
+     xlim = c(1, 3), ylim = c(0, 1))
+text(1:3, p.vals[1, ], label = 1, col = alpha("#1434A4", 0.5))
+text(1:3, p.vals[2, ], label = 2, col = alpha("#1434A4", 0.5))
+text(1:3, p.vals[3, ], label = 3, col = alpha("#1434A4", 0.5))
+text(1:3, p.vals[4, ], label = 4, col = alpha("#1434A4", 0.5))
+text(1:3, p.vals[5, ], label = 5, col = alpha("#C21E56", 0.5))
+text(1:3, p.vals[6, ], label = 6, col = alpha("#C21E56", 0.5))
+text(1:3, p.vals[7, ], label = 7, col = alpha("#C21E56", 0.5))
+text(1:3, p.vals[8, ], label = 8, col = alpha("#C21E56", 0.5))
+abline(h = 0.05, lty = 3)
+axis(1, at = 1:3, labels = x.labs)
+axis(2, at = c(0, 1))
+legend("topright", legend = c("Constant Tempertaure", "Rising Temperature"),
+       pch = 19, col = c("#1434A4", "#C21E56"), cex = 0.8, bty = "n")
+```
+
+## Saving Nulls
+
+```{r}
+subpops <- c(rep(1, 1000), rep(2, 1000), rep(3, 1000), rep(4, 1000), rep(5, 1000), rep(6, 1000), rep(7, 1000), rep(8, 1000))
+
+ar.p.mean.taus <- data.frame(subpops, null.mean.taus)
+ar.p.mean.taus.CIs <- c(); j = 1; k = 1000
+for (i in 1:8){
+  ar.p.mean.taus.CIs[i] <- quantile(ar.p.mean.taus[j:k, 2], probs = c(0.95), na.rm = TRUE)
+  j = j + 1000; k = k + 1000
+}
+
+ar.p.var.taus <- data.frame(subpops, null.var.taus)
+ar.p.var.taus.CIs <- c(); j = 1; k = 1000
+for (i in 1:8){
+  ar.p.var.taus.CIs[i] <- quantile(ar.p.var.taus[j:k, 2], probs = c(0.95), na.rm = TRUE)
+  j = j + 1000; k = k + 1000
+}
+
+ar.p.id.taus <- data.frame(subpops, null.id.taus)
+ar.p.id.taus.CIs <- c(); j = 1; k = 1000
+for (i in 1:8){
+  ar.p.id.taus.CIs[i] <- quantile(ar.p.id.taus[j:k, 2], probs = c(0.95), na.rm = TRUE)
+  j = j + 1000; k = k + 1000
+}
+
+ar.p.mean.pvals <- p.vals$mean
+ar.p.var.pvals <- p.vals$var
+ar.p.id.pvals <- p.vals$id
+```
+
+# Plotting Together
+
+```{r}
+## Needed
+# True tau values
+real.mean.taus <- c(sub1.mean.tau, sub2.mean.tau, sub3.mean.tau, sub4.mean.tau,
+                    sub5.mean.tau, sub6.mean.tau, sub7.mean.tau, sub8.mean.tau)
+real.var.taus <- c(sub1.var.tau, sub2.var.tau, sub3.var.tau, sub4.var.tau,
+                    sub5.var.tau, sub6.var.tau, sub7.var.tau, sub8.var.tau)
+real.id.taus <- c(sub1.id.tau, sub2.id.tau, sub3.id.tau, sub4.id.tau,
+                    sub5.id.tau, sub6.id.tau, sub7.id.tau, sub8.id.tau)
+# Resampling
+resamp.mean.taus; resamp.mean.pvals
+resamp.var.taus; resamp.var.pvals
+resamp.id.taus; resamp.id.pvals
+# Modified Mann-Kendall Test
+mmk.mean.taus; mmk.mean.pvals
+mmk.var.taus; mmk.var.pvals
+mmk.id.taus; mmk.id.pvals
+# AR Model
+ar.mean.taus; ar.mean.pvals
+ar.var.taus; ar.var.pvals
+ar.id.taus; ar.id.pvals
+# Ar, Pois Model
+ar.p.mean.taus; ar.p.mean.pvals
+ar.p.var.taus; ar.p.var.pvals
+ar.p.id.taus; ar.p.id.pvals
+
+## Data wrangling
+ridgeline.mean <- data.frame(
+  method = c(rep("resamp", 8000), rep("mmk", 8000), rep("ar", 8000), rep("ar.p", 8000)),
+  subpop = rep(c(rep("Subpopulation 1", 1000), rep("Subpopulation 2", 1000), rep("Subpopulation 3", 1000), rep("Subpopulation 4", 1000), 
+                 rep("Subpopulation 5", 1000), rep("Subpopulation 6", 1000), rep("Subpopulation 7", 1000), rep("Subpopulation 8", 1000)), 4),
+  k.tau = c(resamp.mean.taus$null.mean.taus, mmk.mean.taus$null.mean.taus.df, ar.mean.taus$null.mean.taus, ar.p.mean.taus$null.mean.taus),
+  real.tau = rep(c(rep(real.mean.taus, each = 1000)), 4),
+  p.val = c(rep(resamp.mean.pvals, each = 1000), rep(mmk.mean.pvals, each = 1000), rep(ar.mean.pvals, each = 1000), rep(ar.p.mean.pvals, each = 1000))
+)
+ridgeline.var <- data.frame(
+  method = c(rep("resamp", 8000), rep("mmk", 8000), rep("ar", 8000), rep("ar.p", 8000)),
+  subpop = rep(c(rep("Subpopulation 1", 1000), rep("Subpopulation 2", 1000), rep("Subpopulation 3", 1000), rep("Subpopulation 4", 1000), 
+                 rep("Subpopulation 5", 1000), rep("Subpopulation 6", 1000), rep("Subpopulation 7", 1000), rep("Subpopulation 8", 1000)), 4),
+  k.tau = c(resamp.var.taus$null.var.taus, mmk.var.taus$null.var.taus.df, ar.var.taus$null.var.taus, ar.p.var.taus$null.var.taus),
+  real.tau = rep(c(rep(real.var.taus, each = 1000)), 4),
+  p.val = c(rep(resamp.var.pvals, each = 1000), rep(mmk.var.pvals, each = 1000), rep(ar.var.pvals, each = 1000), rep(ar.p.var.pvals, each = 1000))
+)
+ridgeline.id <- data.frame(
+  method = c(rep("resamp", 8000), rep("mmk", 8000), rep("ar", 8000), rep("ar.p", 8000)),
+  subpop = rep(c(rep("Subpopulation 1", 1000), rep("Subpopulation 2", 1000), rep("Subpopulation 3", 1000), rep("Subpopulation 4", 1000), 
+                 rep("Subpopulation 5", 1000), rep("Subpopulation 6", 1000), rep("Subpopulation 7", 1000), rep("Subpopulation 8", 1000)), 4),
+  k.tau = c(resamp.id.taus$null.id.taus, mmk.id.taus$null.id.taus.df, ar.id.taus$null.id.taus, ar.p.id.taus$null.id.taus),
+  real.tau = rep(c(rep(real.id.taus, each = 1000)), 4),
+  p.val = c(rep(resamp.id.pvals, each = 1000), rep(mmk.id.pvals, each = 1000), rep(ar.id.pvals, each = 1000), rep(ar.p.id.pvals, each = 1000))
+)
+
+## Requisite objects
+colours <- c("forestgreen", "orchid", "goldenrod1", "skyblue")
+
+## Plotting
+# Minimum example
+# ggplot(ridgeline.mean, aes(x = k.tau, y = subpop , group = interaction(method, subpop), fill = method)) +
+#   geom_density_ridges(alpha = 0.5) 
+
+ggplot(ridgeline.mean, aes(x = k.tau, y = subpop, group = interaction(method, subpop), fill = method)) +
+  geom_density_ridges(alpha = 0.1, scale = 0.9, color = rep(colours, each = 4096)) +
+  geom_point(ridgeline.mean, mapping = aes(x = real.tau, y = subpop , group = interaction(method, subpop), fill = method), 
+             colour = c(rep("#1434A4", 28000), rep("#D22B2B", 4000)), size = 4, show.legend = FALSE) +
+  scale_fill_cyclical(values = colours, guide = "legend",
+                      labels = c("Surrogate Data from AR-1 Model", "Surrogate Data from AR-1/Poisson Model", "Modified Mann-Kendall Test", "Re-Sampling Data")) +
+  stat_density_ridges(quantile_lines = TRUE, quantiles = 0.95, alpha = 0.1, scale = 0.9, show.legend = FALSE) +
+  geom_vline(xintercept = 0) +
+  ggtitle("Mean") +
+  xlim(-1, 1) +
+  xlab("Kendall's Tau") +
+  ylab("") +
+  labs(fill = "Method") +
+  theme(axis.text.x = element_text(colour = "black"),
+        text = element_text(size = 14)) +
+  theme(axis.text.y = element_text(colour = "black"),
+        text = element_text(size = 14)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+ggplot(ridgeline.var, aes(x = k.tau, y = subpop, group = interaction(method, subpop), fill = method)) +
+  geom_density_ridges(alpha = 0.1, scale = 0.9, color = rep(colours, each = 4096)) +
+  geom_point(ridgeline.var, mapping = aes(x = real.tau, y = subpop , group = interaction(method, subpop), fill = method), 
+             colour = c(rep("#1434A4", 28000), rep("#D22B2B", 4000)), size = 4, show.legend = FALSE) +
+  scale_fill_cyclical(values = colours, guide = "legend",
+                      labels = c("Surrogate Data from AR-1 Model", "Surrogate Data from AR-1/Poisson Model", "Modified Mann-Kendall Test", "Re-Sampling Data")) +
+  stat_density_ridges(quantile_lines = TRUE, quantiles = 0.95, alpha = 0.1, scale = 0.9, show.legend = FALSE) +
+  geom_vline(xintercept = 0) +
+  ggtitle("Variance") +
+  xlim(-1, 1) +
+  xlab("Kendall's Tau") +
+  ylab("") +
+  labs(fill = "Method") +
+  theme(axis.text.x = element_text(colour = "black"),
+        text = element_text(size = 14)) +
+  theme(axis.text.y = element_text(colour = "black"),
+        text = element_text(size = 14)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+ ggplot(ridgeline.id, aes(x = k.tau, y = subpop, group = interaction(method, subpop), fill = method)) +
+  geom_density_ridges(alpha = 0.1, scale = 0.9, color = rep(colours, each = 4096)) +
+  geom_point(ridgeline.id, mapping = aes(x = real.tau, y = subpop , group = interaction(method, subpop), fill = method), 
+             colour = c(rep("#1434A4", 28000), rep("#D22B2B", 4000)), size = 4, show.legend = FALSE) +
+  scale_fill_cyclical(values = colours, guide = "legend",
+                      labels = c("Surrogate Data from AR-1 Model", "Surrogate Data from AR-1/Poisson Model", "Modified Mann-Kendall Test", "Re-Sampling Data")) +
+  stat_density_ridges(quantile_lines = TRUE, quantiles = 0.95, alpha = 0.1, scale = 0.9, show.legend = FALSE) +
+  geom_vline(xintercept = 0) +
+  ggtitle("Index of Dispersion") +
+  xlim(-1, 1) +
+  xlab("Kendall's Tau") +
+  ylab("") +
+  labs(fill = "Method") +
+  theme(axis.text.x = element_text(colour = "black"),
+        text = element_text(size = 14)) +
+  theme(axis.text.y = element_text(colour = "black"),
+        text = element_text(size = 14)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+```
+
+# AR-1/Pois Model Checks
+
+## (1) Running the Model for Longer
+
+```{r}
+# Fitting
+pop1.fit <- rstan::sampling(model, data = pop1.data, chains = 4, iter = 20000, cores = 4, seed = 123, verbose = FALSE)
+pop2.fit <- rstan::sampling(model, data = pop2.data, chains = 4, iter = 20000, cores = 4, seed = 123, verbose = FALSE)
+pop3.fit <- rstan::sampling(model, data = pop3.data, chains = 4, iter = 20000, cores = 4, seed = 123, verbose = FALSE)
+pop4.fit <- rstan::sampling(model, data = pop4.data, chains = 4, iter = 20000, cores = 4, seed = 123, verbose = FALSE)
+pop5.fit <- rstan::sampling(model, data = pop5.data, chains = 4, iter = 20000, cores = 4, seed = 123, verbose = FALSE)
+pop6.fit <- rstan::sampling(model, data = pop6.data, chains = 4, iter = 20000, cores = 4, seed = 123, verbose = FALSE)
+pop7.fit <- rstan::sampling(model, data = pop7.data, chains = 4, iter = 20000, cores = 4, seed = 123, verbose = FALSE)
+pop8.fit <- rstan::sampling(model, data = pop8.data, chains = 4, iter = 20000, cores = 4, seed = 123, verbose = FALSE)
+
+# Extract fit
+pop1.fit.ex <- rstan::extract(pop1.fit)
+pop2.fit.ex <- rstan::extract(pop2.fit)
+pop3.fit.ex <- rstan::extract(pop3.fit)
+pop4.fit.ex <- rstan::extract(pop4.fit)
+pop5.fit.ex <- rstan::extract(pop5.fit)
+pop6.fit.ex <- rstan::extract(pop6.fit)
+pop7.fit.ex <- rstan::extract(pop7.fit)
+pop8.fit.ex <- rstan::extract(pop8.fit)
+
+# Check out y_tilde
+y_tilde <- pop1.fit.ex$y_tilde
+sub1.surr.null <- list()
+for(i in 1:20000){
+  sub1.surr.null[[i]] <- as.numeric(y_tilde[i, ])
+}
+
+y_tilde <- pop2.fit.ex$y_tilde
+sub1.surr.null <- list()
+for(i in 1:20000){
+  sub2.surr.null[[i]] <- as.numeric(y_tilde[i, ])
+}
+
+y_tilde <- pop3.fit.ex$y_tilde
+sub1.surr.null <- list()
+for(i in 1:20000){
+  sub3.surr.null[[i]] <- as.numeric(y_tilde[i, ])
+}
+
+y_tilde <- pop4.fit.ex$y_tilde
+sub1.surr.null <- list()
+for(i in 1:20000){
+  sub4.surr.null[[i]] <- as.numeric(y_tilde[i, ])
+}
+
+y_tilde <- pop5.fit.ex$y_tilde
+sub1.surr.null <- list()
+for(i in 1:20000){
+  sub5.surr.null[[i]] <- as.numeric(y_tilde[i, ])
+}
+
+y_tilde <- pop6.fit.ex$y_tilde
+sub1.surr.null <- list()
+for(i in 1:20000){
+  sub6.surr.null[[i]] <- as.numeric(y_tilde[i, ])
+}
+
+y_tilde <- pop7.fit.ex$y_tilde
+sub1.surr.null <- list()
+for(i in 1:20000){
+  sub7.surr.null[[i]] <- as.numeric(y_tilde[i, ])
+}
+
+y_tilde <- pop8.fit.ex$y_tilde
+sub1.surr.null <- list()
+for(i in 1:20000){
+  sub8.surr.null[[i]] <- as.numeric(y_tilde[i, ])
+}
+```
+
+```{r}
+sub1.surr.null.mean <- list(); sub1.surr.null.sd <- list()
+sub2.surr.null.mean <- list(); sub2.surr.null.sd <- list()
+sub3.surr.null.mean <- list(); sub3.surr.null.sd <- list()
+sub4.surr.null.mean <- list(); sub4.surr.null.sd <- list()
+sub5.surr.null.mean <- list(); sub5.surr.null.sd <- list()
+sub6.surr.null.mean <- list(); sub6.surr.null.sd <- list()
+sub7.surr.null.mean <- list(); sub7.surr.null.sd <- list()
+sub8.surr.null.mean <- list(); sub8.surr.null.sd <- list()
+
+for (i in 1:length(sub1.surr.null)){
+  sub1.surr.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub1.surr.null[[i]], window = 5, step = 1)
+  sub1.surr.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub1.surr.null[[i]], window = 5, step = 1)
+  
+  sub2.surr.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub2.surr.null[[i]], window = 5, step = 1)
+  sub2.surr.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub2.surr.null[[i]], window = 5, step = 1)
+  
+  sub3.surr.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub3.surr.null[[i]], window = 5, step = 1)
+  sub3.surr.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub3.surr.null[[i]], window = 5, step = 1)
+  
+  sub4.surr.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub4.surr.null[[i]], window = 5, step = 1)
+  sub4.surr.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub4.surr.null[[i]], window = 5, step = 1)
+  
+  sub5.surr.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub5.surr.null[[i]], window = 5, step = 1)
+  sub5.surr.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub5.surr.null[[i]], window = 5, step = 1)
+  
+  sub6.surr.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub6.surr.null[[i]], window = 5, step = 1)
+  sub6.surr.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub6.surr.null[[i]], window = 5, step = 1)
+  
+  sub7.surr.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub7.surr.null[[i]], window = 5, step = 1)
+  sub7.surr.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub7.surr.null[[i]], window = 5, step = 1)
+  
+  sub8.surr.null.mean[[i]] <- SlidingWindow(FUN = "mean", data = sub8.surr.null[[i]], window = 5, step = 1)
+  sub8.surr.null.sd[[i]] <- SlidingWindow(FUN = "sd", data = sub8.surr.null[[i]], window = 5, step = 1)
+}
+```
+
+```{r}
+sub1.surr.null.var <- list(); sub2.surr.null.var <- list(); sub3.surr.null.var <- list(); sub4.surr.null.var <- list()
+sub5.surr.null.var <- list(); sub6.surr.null.var <- list(); sub7.surr.null.var <- list(); sub8.surr.null.var <- list()
+for (i in 1:20000){
+  sub1.surr.null.var[[i]] <- sub1.surr.null.sd[[i]]^2
+  sub2.surr.null.var[[i]] <- sub2.surr.null.sd[[i]]^2
+  sub3.surr.null.var[[i]] <- sub3.surr.null.sd[[i]]^2
+  sub4.surr.null.var[[i]] <- sub4.surr.null.sd[[i]]^2
+  sub5.surr.null.var[[i]] <- sub5.surr.null.sd[[i]]^2
+  sub6.surr.null.var[[i]] <- sub6.surr.null.sd[[i]]^2
+  sub7.surr.null.var[[i]] <- sub7.surr.null.sd[[i]]^2
+  sub8.surr.null.var[[i]] <- sub8.surr.null.sd[[i]]^2
+}
+```
+
+```{r}
+sub1.surr.null.id <- list(); sub2.surr.null.id <- list(); sub3.surr.null.id <- list(); sub4.surr.null.id <- list()
+sub5.surr.null.id <- list(); sub6.surr.null.id <- list(); sub7.surr.null.id <- list(); sub8.surr.null.id <- list()
+for (i in 1:20000){
+  sub1.surr.null.id[[i]] <- sub1.surr.null.var[[i]]/(sub1.surr.null.mean[[i]] + 1e-10)
+  sub2.surr.null.id[[i]] <- sub2.surr.null.var[[i]]/(sub2.surr.null.mean[[i]] + 1e-10)
+  sub3.surr.null.id[[i]] <- sub3.surr.null.var[[i]]/(sub3.surr.null.mean[[i]] + 1e-10)
+  sub4.surr.null.id[[i]] <- sub4.surr.null.var[[i]]/(sub4.surr.null.mean[[i]] + 1e-10)
+  sub5.surr.null.id[[i]] <- sub5.surr.null.var[[i]]/(sub5.surr.null.mean[[i]] + 1e-10)
+  sub6.surr.null.id[[i]] <- sub6.surr.null.var[[i]]/(sub6.surr.null.mean[[i]] + 1e-10)
+  sub7.surr.null.id[[i]] <- sub7.surr.null.var[[i]]/(sub7.surr.null.mean[[i]] + 1e-10)
+  sub8.surr.null.id[[i]] <- sub8.surr.null.var[[i]]/(sub8.surr.null.mean[[i]] + 1e-10)
+}
+```
+
+```{r}
+sub1.surr.null.mean.taus <- c(); sub2.surr.null.mean.taus <- c(); sub3.surr.null.mean.taus <- c(); sub4.surr.null.mean.taus <- c()
+sub5.surr.null.mean.taus <- c(); sub6.surr.null.mean.taus <- c(); sub7.surr.null.mean.taus <- c(); sub8.surr.null.mean.taus <- c()
+t <- seq(1, 15, 1)
+for (i in 1:20000){
+  sub1.surr.null.mean.taus[i] <- cor(sub1.surr.null.mean[[i]], t, method = "kendall")
+  sub2.surr.null.mean.taus[i] <- cor(sub2.surr.null.mean[[i]], t, method = "kendall")
+  sub3.surr.null.mean.taus[i] <- cor(sub3.surr.null.mean[[i]], t, method = "kendall")
+  sub4.surr.null.mean.taus[i] <- cor(sub4.surr.null.mean[[i]], t, method = "kendall")
+  sub5.surr.null.mean.taus[i] <- cor(sub5.surr.null.mean[[i]], t, method = "kendall")
+  sub6.surr.null.mean.taus[i] <- cor(sub6.surr.null.mean[[i]], t, method = "kendall")
+  sub7.surr.null.mean.taus[i] <- cor(sub7.surr.null.mean[[i]], t, method = "kendall")
+  sub8.surr.null.mean.taus[i] <- cor(sub8.surr.null.mean[[i]], t, method = "kendall")
+}
+```
+
+```{r}
+sub1.surr.null.var.taus <- c(); sub2.surr.null.var.taus <- c(); sub3.surr.null.var.taus <- c(); sub4.surr.null.var.taus <- c()
+sub5.surr.null.var.taus <- c(); sub6.surr.null.var.taus <- c(); sub7.surr.null.var.taus <- c(); sub8.surr.null.var.taus <- c()
+t <- seq(1, 15, 1)
+for (i in 1:20000){
+  sub1.surr.null.var.taus[i] <- cor(sub1.surr.null.var[[i]], t, method = "kendall")
+  sub2.surr.null.var.taus[i] <- cor(sub2.surr.null.var[[i]], t, method = "kendall")
+  sub3.surr.null.var.taus[i] <- cor(sub3.surr.null.var[[i]], t, method = "kendall")
+  sub4.surr.null.var.taus[i] <- cor(sub4.surr.null.var[[i]], t, method = "kendall")
+  sub5.surr.null.var.taus[i] <- cor(sub5.surr.null.var[[i]], t, method = "kendall")
+  sub6.surr.null.var.taus[i] <- cor(sub6.surr.null.var[[i]], t, method = "kendall")
+  sub7.surr.null.var.taus[i] <- cor(sub7.surr.null.var[[i]], t, method = "kendall")
+  sub8.surr.null.var.taus[i] <- cor(sub8.surr.null.var[[i]], t, method = "kendall")
+}
+```
+
+```{r}
+sub1.surr.null.id.taus <- c(); sub2.surr.null.id.taus <- c(); sub3.surr.null.id.taus <- c(); sub4.surr.null.id.taus <- c()
+sub5.surr.null.id.taus <- c(); sub6.surr.null.id.taus <- c(); sub7.surr.null.id.taus <- c(); sub8.surr.null.id.taus <- c()
+t <- seq(1, 15, 1)
+for (i in 1:20000){
+  sub1.surr.null.id.taus[i] <- cor(sub1.surr.null.id[[i]], t, method = "kendall")
+  sub2.surr.null.id.taus[i] <- cor(sub2.surr.null.id[[i]], t, method = "kendall")
+  sub3.surr.null.id.taus[i] <- cor(sub3.surr.null.id[[i]], t, method = "kendall")
+  sub4.surr.null.id.taus[i] <- cor(sub4.surr.null.id[[i]], t, method = "kendall")
+  sub5.surr.null.id.taus[i] <- cor(sub5.surr.null.id[[i]], t, method = "kendall")
+  sub6.surr.null.id.taus[i] <- cor(sub6.surr.null.id[[i]], t, method = "kendall")
+  sub7.surr.null.id.taus[i] <- cor(sub7.surr.null.id[[i]], t, method = "kendall")
+  sub8.surr.null.id.taus[i] <- cor(sub8.surr.null.id[[i]], t, method = "kendall")
+}
+```
+
+```{r}
+## Mean
+surr.null.mean.taus <- list(
+  sub1.surr.null.mean.taus,
+  sub2.surr.null.mean.taus,
+  sub3.surr.null.mean.taus,
+  sub4.surr.null.mean.taus,
+  sub5.surr.null.mean.taus,
+  sub6.surr.null.mean.taus,
+  sub7.surr.null.mean.taus,
+  sub8.surr.null.mean.taus
+)
+cols <- c(rep("#A7C7E7", 4), rep("#F6799D", 4))
+mains <- c("pop1.mean", "pop2.mean", "pop3.mean", "pop4.mean", "pop5.mean", "pop6.mean", "pop7.mean", "pop8.mean")
+true.taus <- c(constant.mean.tau, warming.mean.tau)
+vline.cols <- c(rep("#1434A4", 4), rep("#C21E56", 4))
+par(mfrow = c(2, 4))
+for (i in 1:8){
+  hist(surr.null.mean.taus[[i]], 
+     col = cols[i], border = cols[i],
+     xlim = c(-1, 1), ylim = c(1, 2500),
+     main = mains[i], xlab = "")
+  abline(v = true.taus[i], col = vline.cols[i], lwd = 2)
+}
+
+## Variance
+surr.null.var.taus <- list(
+  sub1.surr.null.var.taus,
+  sub2.surr.null.var.taus,
+  sub3.surr.null.var.taus,
+  sub4.surr.null.var.taus,
+  sub5.surr.null.var.taus,
+  sub6.surr.null.var.taus,
+  sub7.surr.null.var.taus,
+  sub8.surr.null.var.taus
+)
+cols <- c(rep("#A7C7E7", 4), rep("#F6799D", 4))
+mains <- c("pop1.var", "pop2.var", "pop3.var", "pop4.var", "pop5.var", "pop6.var", "pop7.var", "pop8.var")
+true.taus <- c(constant.var.tau, warming.var.tau)
+vline.cols <- c(rep("#1434A4", 4), rep("#C21E56", 4))
+par(mfrow = c(2, 4))
+for (i in 1:8){
+  hist(surr.null.var.taus[[i]], 
+     col = cols[i], border = cols[i],
+     xlim = c(-1, 1), ylim = c(1, 2500),
+     main = mains[i], xlab = "")
+  abline(v = true.taus[i], col = vline.cols[i], lwd = 2)
+}
+
+## Index of Dispersion
+surr.null.id.taus <- list(
+  sub1.surr.null.id.taus,
+  sub2.surr.null.id.taus,
+  sub3.surr.null.id.taus,
+  sub4.surr.null.id.taus,
+  sub5.surr.null.id.taus,
+  sub6.surr.null.id.taus,
+  sub7.surr.null.id.taus,
+  sub8.surr.null.id.taus
+)
+cols <- c(rep("#A7C7E7", 4), rep("#F6799D", 4))
+mains <- c("pop1.id", "pop2.id", "pop3.id", "pop4.id", "pop5.id", "pop6.id", "pop7.id", "pop8.id")
+true.taus <- c(constant.id.tau, warming.id.tau)
+vline.cols <- c(rep("#1434A4", 4), rep("#C21E56", 4))
+par(mfrow = c(2, 4))
+for (i in 1:8){
+  hist(surr.null.id.taus[[i]], 
+     col = cols[i], border = cols[i],
+     xlim = c(-1, 1), ylim = c(1, 2500),
+     main = mains[i], xlab = "")
+  abline(v = true.taus[i], col = vline.cols[i], lwd = 2)
+}
+```
+
+### Model Checks
+
+```{r}
+## TRACE PLOTS
+color_scheme_set("brightblue")
+
+mcmc_trace(pop1.fit,  pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                               "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                               "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                               "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]")) +
+  labs(title = "Population 1") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_trace(pop1.fit,  pars = c("ac", "sigma")) +
+  labs(title = "Population 1") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_trace(pop1.fit,  pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                               "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                               "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                               "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]")) +
+  labs(title = "Population 2") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_trace(pop2.fit,  pars = c("ac", "sigma")) +
+  labs(title = "Population 2") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_trace(pop1.fit,  pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                               "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                               "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                               "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]")) +
+  labs(title = "Population 3") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_trace(pop3.fit,  pars = c("ac", "sigma")) +
+  labs(title = "Population 3") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_trace(pop4.fit,  pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                               "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                               "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                               "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]")) +
+  labs(title = "Population 4") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_trace(pop4.fit,  pars = c("ac", "sigma")) +
+  labs(title = "Population 4") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+color_scheme_set("pink")
+
+mcmc_trace(pop5.fit,  pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                               "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                               "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                               "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]")) +
+  labs(title = "Population 5") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_trace(pop5.fit,  pars = c("ac", "sigma")) +
+  labs(title = "Population 5") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_trace(pop6.fit,  pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                               "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                               "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                               "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]")) +
+  labs(title = "Population 6") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_trace(pop6.fit,  pars = c("ac", "sigma")) +
+  labs(title = "Population 6") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_trace(pop7.fit,  pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                               "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                               "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                               "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]")) +
+  labs(title = "Population 7") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_trace(pop7.fit,  pars = c("ac", "sigma")) +
+  labs(title = "Population 7") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_trace(pop8.fit,  pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                               "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                               "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                               "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]")) +
+  labs(title = "Population 8") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_trace(pop8.fit,  pars = c("ac", "sigma")) +
+  labs(title = "Population 8") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+## AREA PLOTS
+color_scheme_set("brightblue")
+
+mcmc_areas(pop1.fit,
+           pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                    "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                    "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                    "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]"),
+           prob = 0.8) +
+  labs(title = "Population 1") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_areas(pop2.fit,
+           pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                    "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                    "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                    "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]"),
+           prob = 0.8) +
+  labs(title = "Population 2") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_areas(pop3.fit,
+           pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                    "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                    "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                    "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]"),
+           prob = 0.8) +
+  labs(title = "Population 3") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_areas(pop4.fit,
+           pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                    "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                    "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                    "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]"),
+           prob = 0.8) +
+  labs(title = "Population 4") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+color_scheme_set("pink")
+
+mcmc_areas(pop5.fit,
+           pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                    "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                    "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                    "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]"),
+           prob = 0.8) +
+  labs(title = "Population 5") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_areas(pop6.fit,
+           pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                    "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                    "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                    "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]"),
+           prob = 0.8) +
+  labs(title = "Population 6") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_areas(pop7.fit,
+           pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                    "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                    "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                    "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]"),
+           prob = 0.8) +
+  labs(title = "Population 7") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_areas(pop8.fit,
+           pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                    "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                    "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                    "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]"),
+           prob = 0.8) +
+  labs(title = "Population 8") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+## DENSITY PLOTS
+color_scheme_set("brightblue")
+
+y_tilde <- pop1.fit.ex$y_tilde
+ppc_dens_overlay(y1, y_tilde[1:1000, ]) +
+  labs(title = "Population 1") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+y_tilde <- pop2.fit.ex$y_tilde
+ppc_dens_overlay(y2, y_tilde[1:1000, ]) +
+  labs(title = "Population 2") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+y_tilde <- pop3.fit.ex$y_tilde
+ppc_dens_overlay(y3, y_tilde[1:1000, ]) +
+  labs(title = "Population 3") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+y_tilde <- pop4.fit.ex$y_tilde
+ppc_dens_overlay(y4, y_tilde[1:1000, ]) +
+  labs(title = "Population 4") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+color_scheme_set("pink")
+
+y_tilde <- pop5.fit.ex$y_tilde
+ppc_dens_overlay(y5, y_tilde[1:1000, ]) +
+  labs(title = "Population 5") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+y_tilde <- pop6.fit.ex$y_tilde
+ppc_dens_overlay(y6, y_tilde[1:1000, ]) +
+  labs(title = "Population 6") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+y_tilde <- pop7.fit.ex$y_tilde
+ppc_dens_overlay(y7, y_tilde[1:1000, ]) +
+  labs(title = "Population 7") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+y_tilde <- pop8.fit.ex$y_tilde
+ppc_dens_overlay(y8, y_tilde[1:1000, ]) +
+  labs(title = "Population 8") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+Metric <- c(rep("Mean", 1000), rep("Variance", 1000), rep("Index of Dispersion", 1000))
+Tau <- c(sim.dat.mean.taus, sim.dat.var.taus, sim.dat.id.taus)
+df <- data_frame(Metric = Metric, Tau = Tau)
+
+ggplot(data = df, aes(x = Tau, group = Metric, fill = Metric)) +
+  geom_density(adjust = 1.5, alpha = 0.4) +
+  labs(title = "Simulated Data", y = "Density") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+```
+
+### Comparing y and r_rep
+
+```{r}
+par(mfrow = c(2, 4))
+
+y_tilde <- pop1.fit.ex$y_tilde
+plot(1, type = "n", main = "Population 1", xlab = "Time", ylab = "Prevalence", xlim = c(1, 20), ylim = c(0, 10))
+for (i in 1:1000)
+  lines(1:20, y_tilde[i, ], col = adjustcolor("lightblue", alpha = 0.1))
+lines(1:20, y1, col = "black", lwd = 3)
+
+y_tilde <- pop2.fit.ex$y_tilde
+plot(1, type = "n", main = "Population 2", xlab = "Time", ylab = "Prevalence", xlim = c(1, 20), ylim = c(0, 10))
+for (i in 1:1000)
+  lines(1:20, y_tilde[i, ], col = adjustcolor("lightblue", alpha = 0.1))
+lines(1:20, y2, col = "black", lwd = 3)
+
+y_tilde <- pop3.fit.ex$y_tilde
+plot(1, type = "n", main = "Population 3", xlab = "Time", ylab = "Prevalence", xlim = c(1, 20), ylim = c(0, 10))
+for (i in 1:1000)
+  lines(1:20, y_tilde[i, ], col = adjustcolor("lightblue", alpha = 0.1))
+lines(1:20, y3, col = "black", lwd = 3)
+
+y_tilde <- pop4.fit.ex$y_tilde
+plot(1, type = "n", main = "Population 4", xlab = "Time", ylab = "Prevalence", xlim = c(1, 20), ylim = c(0, 10))
+for (i in 1:1000)
+  lines(1:20, y_tilde[i, ], col = adjustcolor("lightblue", alpha = 0.1))
+lines(1:20, y4, col = "black", lwd = 3)
+
+y_tilde <- pop5.fit.ex$y_tilde
+plot(1, type = "n", main = "Population 5", xlab = "Time", ylab = "Prevalence", xlim = c(1, 20), ylim = c(0, 10))
+for (i in 1:1000)
+  lines(1:20, y_tilde[i, ], col = adjustcolor("orchid", alpha = 0.1))
+lines(1:20, y5, col = "black", lwd = 3)
+
+y_tilde <- pop6.fit.ex$y_tilde
+plot(1, type = "n", main = "Population 6", xlab = "Time", ylab = "Prevalence", xlim = c(1, 20), ylim = c(0, 10))
+for (i in 1:1000)
+  lines(1:20, y_tilde[i, ], col = adjustcolor("orchid", alpha = 0.1))
+lines(1:20, y6, col = "black", lwd = 3)
+
+y_tilde <- pop7.fit.ex$y_tilde
+plot(1, type = "n", main = "Population 7", xlab = "Time", ylab = "Prevalence", xlim = c(1, 20), ylim = c(0, 10))
+for (i in 1:1000)
+  lines(1:20, y_tilde[i, ], col = adjustcolor("orchid", alpha = 0.1))
+lines(1:20, y7, col = "black", lwd = 3)
+
+y_tilde <- pop8.fit.ex$y_tilde
+plot(1, type = "n", main = "Population 8", xlab = "Time", ylab = "Prevalence", xlim = c(1, 20), ylim = c(0, 10))
+for (i in 1:1000)
+  lines(1:20, y_tilde[i, ], col = adjustcolor("orchid", alpha = 0.1))
+lines(1:20, y8, col = "black", lwd = 3)
+```
+
+## (2) Plotting µ from Model Output
+
+```{r}
+pop1.mu <- rstan::extract(pop1.fit, pars = "mu")[[1]]
+pop2.mu <- rstan::extract(pop2.fit, pars = "mu")[[1]]
+pop3.mu <- rstan::extract(pop3.fit, pars = "mu")[[1]]
+pop4.mu <- rstan::extract(pop4.fit, pars = "mu")[[1]]
+pop5.mu <- rstan::extract(pop5.fit, pars = "mu")[[1]]
+pop6.mu <- rstan::extract(pop6.fit, pars = "mu")[[1]]
+pop7.mu <- rstan::extract(pop7.fit, pars = "mu")[[1]]
+pop8.mu <- rstan::extract(pop8.fit, pars = "mu")[[1]]
+
+ts <- factor(1:ncol(pop1.mu), levels = 1:ncol(pop1.mu)); ts <- rep(ts, each = nrow(pop1.mu))
+
+mu.1 <- c()
+for (i in 1:ncol(pop1.mu)){
+  temp <- pop1.mu[ , i]
+  mu.1 <- c(mu.1, temp)
+}
+mu.2 <- c()
+for (i in 1:ncol(pop2.mu)){
+  temp <- pop2.mu[ , i]
+  mu.2 <- c(mu.2, temp)
+}
+mu.3 <- c()
+for (i in 1:ncol(pop3.mu)){
+  temp <- pop3.mu[ , i]
+  mu.3 <- c(mu.3, temp)
+}
+mu.4 <- c()
+for (i in 1:ncol(pop4.mu)){
+  temp <- pop4.mu[ , i]
+  mu.4 <- c(mu.4, temp)
+}
+mu.5 <- c()
+for (i in 1:ncol(pop5.mu)){
+  temp <- pop5.mu[ , i]
+  mu.5 <- c(mu.5, temp)
+}
+mu.6 <- c()
+for (i in 1:ncol(pop6.mu)){
+  temp <- pop6.mu[ , i]
+  mu.6 <- c(mu.6, temp)
+}
+mu.7 <- c()
+for (i in 1:ncol(pop7.mu)){
+  temp <- pop7.mu[ , i]
+  mu.7 <- c(mu.7, temp)
+}
+mu.8 <- c()
+for (i in 1:ncol(pop8.mu)){
+  temp <- pop8.mu[ , i]
+  mu.8 <- c(mu.8, temp)
+}
+
+df <- data.frame(ts, mu.1, mu.2, mu.3, mu.4, mu.5, mu.6, mu.7, mu.8)
+
+ggplot(df, aes(x = mu.1, y = ts, fill = ts)) +
+  geom_density_ridges(quantile_lines = TRUE, quantile_fun = function(mu.1,...)mean(mu.1)) +
+  theme_ridges() + 
+  xlim(-10, 3) +
+  labs(title = "Population 1 (Control)", x = "Estimated Values of µ", y = "Time Step") +
+  theme(legend.position = "none")
+
+ggplot(df, aes(x = mu.2, y = ts, fill = ts)) +
+  geom_density_ridges(quantile_lines = TRUE, quantile_fun = function(mu.2,...)mean(mu.2)) +
+  theme_ridges() + 
+  xlim(-10, 3) +
+  labs(title = "Population 2 (Control)", x = "Estimated Values of µ", y = "Time Step") +
+  theme(legend.position = "none")
+
+ggplot(df, aes(x = mu.3, y = ts, fill = ts)) +
+  geom_density_ridges(quantile_lines = TRUE, quantile_fun = function(mu.3,...)mean(mu.3)) +
+  theme_ridges() + 
+  xlim(-10, 3) +
+  labs(title = "Population 3 (Control)", x = "Estimated Values of µ", y = "Time Step") +
+  theme(legend.position = "none")
+
+ggplot(df, aes(x = mu.4, y = ts, fill = ts)) +
+  geom_density_ridges(quantile_lines = TRUE, quantile_fun = function(mu.4,...)mean(mu.4)) +
+  theme_ridges() + 
+  xlim(-10, 3) +
+  labs(title = "Population 4 (Control)", x = "Estimated Values of µ", y = "Time Step") +
+  theme(legend.position = "none")
+
+ggplot(df, aes(x = mu.5, y = ts, fill = ts)) +
+  geom_density_ridges(quantile_lines = TRUE, quantile_fun = function(mu.5,...)mean(mu.5)) +
+  theme_ridges() + 
+  xlim(-10, 3) +
+  labs(title = "Population 5 (Test)", x = "Estimated Values of µ", y = "Time Step") +
+  theme(legend.position = "none")
+
+ggplot(df, aes(x = mu.6, y = ts, fill = ts)) +
+  geom_density_ridges(quantile_lines = TRUE, quantile_fun = function(mu.6,...)mean(mu.6)) +
+  theme_ridges() + 
+  xlim(-10, 3) +
+  labs(title = "Population 6 (Test)", x = "Estimated Values of µ", y = "Time Step") +
+  theme(legend.position = "none")
+
+ggplot(df, aes(x = mu.7, y = ts, fill = ts)) +
+  geom_density_ridges(quantile_lines = TRUE, quantile_fun = function(mu.7,...)mean(mu.7)) +
+  theme_ridges() + 
+  xlim(-10, 3) +
+  labs(title = "Population 7 (Test)", x = "Estimated Values of µ", y = "Time Step") +
+  theme(legend.position = "none")
+
+ggplot(df, aes(x = mu.8, y = ts, fill = ts)) +
+  geom_density_ridges(quantile_lines = TRUE, quantile_fun = function(mu.8,...)mean(mu.8)) +
+  theme_ridges() + 
+  xlim(-10, 3) +
+  labs(title = "Population 8 (Test)", x = "Estimated Values of µ", y = "Time Step") +
+  theme(legend.position = "none")
+```
+
+## (3) Simulating Data and Fitting
+
+```{r}
+## Simulating data
+# Parameters
+mu_start <- 0.1; # Starting value for the mean of the autoregressive part
+ac <- 0.2; # Autoregressive part
+sigma <- 0.5 # Variance for additive white noise
+
+
+TT <- 20 #length of simulation
+
+# Simulation
+mu <- c(mu_start); # Time series for the mean of the auto-regressive process
+y <- rpois(1, exp(mu[1])) # Start of prevalence time series
+for(t in 2:TT){
+	mu[t] <- ac*mu[t-1] + rnorm(1, 0, sigma) # Autoregressive part
+	y[t] <- rpois(1, exp(mu[t])) # Prevalence count
+}
+
+mu; mu_input <- mu
+y; y_input <- y; plot(y, type = "l")
+
+## Let's fit the model to these data
+sim.data <- list(N = TT, y = y)
+sim.fit <- rstan::sampling(model, data = sim.data, chains = 4, iter = 4000, cores = 4, seed = 123, verbose = FALSE)
+sim.fit.ex <- rstan::extract(sim.fit)
+y_tilde <- sim.fit.ex$y_tilde
+
+## Analysis
+length(which(y_tilde[ , 1] == 0)); init.zero <- which(y_tilde[ , 1] == 0); init.zero <- init.zero[1:1000]
+temp <- y_tilde[init.zero , ]
+# select.rows <- c(sample(nrow(y_tilde), 1000, replace = FALSE))
+sim.dat <- list()
+for(i in 1:1000){
+  sim.dat[[i]] <- as.numeric(temp[i, ])
+}
+
+# Calculating metrics
+sim.dat.mean <- list(); sim.dat.sd <- list()
+for (i in 1:length(sim.dat)){
+  sim.dat.mean[[i]] <- SlidingWindow(FUN = "mean", data = sim.dat[[i]], window = 5, step = 1)
+  sim.dat.sd[[i]] <- SlidingWindow(FUN = "sd", data = sim.dat[[i]], window = 5, step = 1)
+}
+
+sim.dat.var <- list()
+for (i in 1:1000){
+  sim.dat.var[[i]] <- sim.dat.sd[[i]]^2
+}
+
+sim.dat.id <- list()
+for (i in 1:1000){
+  sim.dat.id[[i]] <- sim.dat.var[[i]]/(sim.dat.mean[[i]] + 1e-10)
+}
+
+# Kendall's Tau
+sim.dat.mean.taus <- c()
+t <- seq(1, 15, 1)
+for (i in 1:1000){
+  sim.dat.mean.taus[i] <- cor(sim.dat.mean[[i]], t, method = "kendall")
+}
+
+sim.dat.var.taus <- c()
+t <- seq(1, 15, 1)
+for (i in 1:1000){
+  sim.dat.var.taus[i] <- cor(sim.dat.var[[i]], t, method = "kendall")
+}
+
+sim.dat.id.taus <- c()
+t <- seq(1, 15, 1)
+for (i in 1:1000){
+  sim.dat.id.taus[i] <- cor(sim.dat.id[[i]], t, method = "kendall")
+}
+
+## Tau Densities
+Metric <- c(rep("Mean", 20000), rep("Variance", 20000), rep("Index of Dispersion", 20000))
+Tau <- c(sub1.surr.null.mean.taus, sub1.surr.null.var.taus, sub1.surr.null.id.taus)
+df <- data_frame(Metric = Metric, Tau = Tau)
+
+P1 <- ggplot(data = df, aes(x = Tau, group = Metric, fill = Metric)) +
+  geom_density(adjust = 1.5, alpha = 0.4) +
+  xlim(-1, 1) +
+  labs(title = "Population 1", x = "Trend Coefficient", y = "Density") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+Metric <- c(rep("Mean", 20000), rep("Variance", 20000), rep("Index of Dispersion", 20000))
+Tau <- c(sub2.surr.null.mean.taus, sub2.surr.null.var.taus, sub2.surr.null.id.taus)
+df <- data_frame(Metric = Metric, Tau = Tau)
+
+P2 <- ggplot(data = df, aes(x = Tau, group = Metric, fill = Metric)) +
+  geom_density(adjust = 1.5, alpha = 0.4) +
+  xlim(-1, 1) +
+  labs(title = "Population 2", x = "Trend Coefficient", y = "Density") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+Metric <- c(rep("Mean", 20000), rep("Variance", 20000), rep("Index of Dispersion", 20000))
+Tau <- c(sub3.surr.null.mean.taus, sub3.surr.null.var.taus, sub3.surr.null.id.taus)
+df <- data_frame(Metric = Metric, Tau = Tau)
+
+P3 <- ggplot(data = df, aes(x = Tau, group = Metric, fill = Metric)) +
+  geom_density(adjust = 1.5, alpha = 0.4) +
+  xlim(-1, 1) +
+  labs(title = "Population 3", x = "Trend Coefficient", y = "Density") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+Metric <- c(rep("Mean", 20000), rep("Variance", 20000), rep("Index of Dispersion", 20000))
+Tau <- c(sub4.surr.null.mean.taus, sub4.surr.null.var.taus, sub4.surr.null.id.taus)
+df <- data_frame(Metric = Metric, Tau = Tau)
+
+P4 <- ggplot(data = df, aes(x = Tau, group = Metric, fill = Metric)) +
+  geom_density(adjust = 1.5, alpha = 0.4) +
+  xlim(-1, 1) +
+  labs(title = "Population 4", x = "Trend Coefficient", y = "Density") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+Metric <- c(rep("Mean", 20000), rep("Variance", 20000), rep("Index of Dispersion", 20000))
+Tau <- c(sub5.surr.null.mean.taus, sub5.surr.null.var.taus, sub5.surr.null.id.taus)
+df <- data_frame(Metric = Metric, Tau = Tau)
+
+P5 <- ggplot(data = df, aes(x = Tau, group = Metric, fill = Metric)) +
+  geom_density(adjust = 1.5, alpha = 0.4) +
+  xlim(-1, 1) +
+  labs(title = "Population 5", x = "Trend Coefficient", y = "Density") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+Metric <- c(rep("Mean", 20000), rep("Variance", 20000), rep("Index of Dispersion", 20000))
+Tau <- c(sub6.surr.null.mean.taus, sub6.surr.null.var.taus, sub6.surr.null.id.taus)
+df <- data_frame(Metric = Metric, Tau = Tau)
+
+P6 <- ggplot(data = df, aes(x = Tau, group = Metric, fill = Metric)) +
+  geom_density(adjust = 1.5, alpha = 0.4) +
+  xlim(-1, 1) +
+  labs(title = "Population 6", x = "Trend Coefficient", y = "Density") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+Metric <- c(rep("Mean", 20000), rep("Variance", 20000), rep("Index of Dispersion", 20000))
+Tau <- c(sub7.surr.null.mean.taus, sub7.surr.null.var.taus, sub7.surr.null.id.taus)
+df <- data_frame(Metric = Metric, Tau = Tau)
+
+P7 <- ggplot(data = df, aes(x = Tau, group = Metric, fill = Metric)) +
+  geom_density(adjust = 1.5, alpha = 0.4) +
+  xlim(-1, 1) +
+  labs(title = "Population 7", x = "Trend Coefficient", y = "Density") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+Metric <- c(rep("Mean", 20000), rep("Variance", 20000), rep("Index of Dispersion", 20000))
+Tau <- c(sub8.surr.null.mean.taus, sub8.surr.null.var.taus, sub8.surr.null.id.taus)
+df <- data_frame(Metric = Metric, Tau = Tau)
+
+P8 <- ggplot(data = df, aes(x = Tau, group = Metric, fill = Metric)) +
+  geom_density(adjust = 1.5, alpha = 0.4) +
+  xlim(-1, 1) +
+  labs(title = "Population 8", x = "Trend Coefficient", y = "Density") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+plot_grid(P1, P2, P3, P4, P5, P6, P7, P8)
+```
+
+### Model Checks
+
+```{r}
+color_scheme_set("green")
+
+mcmc_trace(sim.fit,  pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                              "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                              "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                              "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]")) +
+  labs(title = "Simulated Data") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_trace(sim.fit,  pars = c("ac", "sigma")) +
+  labs(title = "Simulated Data") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+mcmc_areas(sim.fit,
+           pars = c("mu[1]", "mu[2]", "mu[3]", "mu[4]", "mu[5]",
+                    "mu[6]", "mu[7]", "mu[8]", "mu[9]", "mu[10]",
+                    "mu[11]", "mu[12]", "mu[13]", "mu[14]", "mu[15]",
+                    "mu[16]", "mu[17]", "mu[18]", "mu[19]", "mu[20]"),
+           prob = 0.8) +
+  labs(title = "Simulated Data") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+y_tilde <- sim.fit.ex$y_tilde
+ppc_dens_overlay(y, y_tilde[1:1000, ]) +
+  labs(title = "Simulated Data") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+```
+
+### Comparing In & Out
+
+```{r}
+plot(1, type = "n", main = "Simulated Data and Estimates", xlab = "Time", ylab = "Prevalence", xlim = c(1, 20), ylim = c(0, 10))
+for (i in 1:1000)
+  lines(1:20, y_tilde[i, ], col = adjustcolor("orchid", alpha = 0.1))
+lines(1:20, y_input, col = "black", lwd = 3)
+
+mu_est <- sim.fit.ex$mu
+plot(1, type = "n", main = "Simulated µ and Estimates", xlab = "Time", ylab = "Mean of AR-1 Process", xlim = c(1, 20), ylim = c(-2, 2))
+for (i in 1:1000)
+  lines(1:20, mu_est[i, ], col = adjustcolor("lightblue", alpha = 0.1))
+lines(1:20, mu_input, col = "black", lwd = 3)
+```
