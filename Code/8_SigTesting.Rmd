@@ -66,35 +66,10 @@ What else does the literature say?
 
 # (1) Resampling Time Series
 
-From Harris et al. (2020):
-
-```{r}
-kericho <- read.csv("/Users/mjarviscross/Desktop/Thesis_Lit/Chapter 3 Lit/Reference_Code/Harris et al. (2020)/kericho.csv")
-
-# Approach to criticality
-test <- kericho$BBK[204:340] # 137 of 455 observations; in our case, we restrict to the first 55 days (emergence at ~60)
-
-# Generate 10,000 null permutations
-obs <- list(length = 10001)
-obs[[10001]] <- test # Original
-  
-set.seed(10022016) 
-for (i in 1:10000){
-  obs[[i]] <- sample(test, length(test), replace = FALSE)
-} 
-
-plot(obs[[1]], type = "l", col = "black",
-     xlab = "Time", ylab = "Incidence")
-lines(obs[[2]], col = "green")
-lines(obs[[3]], col = "purple")
-```
-
 ## Data Wrangling
 
-Okay, now, let's do it with Devin's empirical data:
-
 ```{r}
-data <- read.csv("Kirk_Data/Epidemics_Data_Dryad/Kirk_et_al_epidemics_sampling_data.csv")
+data <- read.csv("Data/Experimental/Kirk_et_al_epidemics_sampling_data.csv")
 
 sub1 <- subset(data.sum, population == 1)
 sub2 <- subset(data.sum, population == 2)
@@ -802,7 +777,7 @@ mmk.id.pvals <- p.vals$id
 
 ```{r}
 ## Original empirical time series
-data <- read.csv("Kirk_Data/Epidemics_Data_Dryad/Kirk_et_al_epidemics_sampling_data.csv")
+data <- read.csv("Data/Experimental/Kirk_et_al_epidemics_sampling_data.csv")
 sub1 <- subset(data.sum, population == 1)
 sub2 <- subset(data.sum, population == 2)
 sub3 <- subset(data.sum, population == 3)
@@ -1469,7 +1444,7 @@ $e_t$ is given by a Gaussian pseudorandom number generator
 ## Compiling Model
 
 ```{r}
-model <- stan_model("10_SigTesting.stan")
+model <- stan_model("8_SigTesting.stan")
 ```
 
 ## Fitting AR Model in Stan
