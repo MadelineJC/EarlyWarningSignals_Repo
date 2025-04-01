@@ -25,7 +25,7 @@ A guide to the “`Data`” folder:
 1. `Simulated`
 	* Contains simulated time series of disease spread within 1000 "Control" and 1000 "Warming" populations.
 2. `Experimental`
-	* Experimental time series of disease spread within 4 "Control" and 4 "Warming" populations. These data were derived from an experiment conducted and published by Kirk et al. (["Experimental evidence of warming-induced disease emergence and its prediction by a trait-based mechanistic model"])(https://royalsocietypublishing.org/doi/10.1098/rspb.2020.1526).
+	* Experimental time series of disease spread within 4 "Control" and 4 "Warming" populations. These data were derived from an experiment conducted and published by Kirk et al. [("Experimental evidence of warming-induced disease emergence and its prediction by a trait-based mechanistic model")](https://royalsocietypublishing.org/doi/10.1098/rspb.2020.1526).
 		
 ---
 
