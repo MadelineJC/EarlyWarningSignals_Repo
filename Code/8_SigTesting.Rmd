@@ -771,13 +771,10 @@ mmk.id.pvals <- p.vals$id
 
 # (3) Surrogate Time Series via AR-1 Model
 
-## Generating Surrogate Time Series
-
-**Per Dakos et al. 2008:** "To test against the H0 hypothesis that the data are produced by a colored-noise process with similar variance, mean, and autocorrelation at lag 1 with the original detrended time series (Theiler et al. 1992), we generated surrogate sets by an AR1 model $x_{t+1} = \alpha_1 x_t + \alpha_0 + \sigma \epsilon_t$, where $\alpha_1 = A(1), \sigma^2 = v(1-\alpha_1^2)$, $\alpha_0 = \mu(1-\alpha_1)$, with $v$ the variance, $\mu$ the mean, $A(1)$ the autocorrelation at lag 1 from the residual time series (estimated by using function `acf` as implemented in R), and $\sigma$ a scaling factor for the Gaussian random error $\epsilon_t$.
+## Estimating Partial Autocorrelation of Pre-Bifurcation Time Series 
 
 ```{r}
-## Original empirical time series
-data <- read.csv("Data/Experimental/Kirk_et_al_epidemics_sampling_data.csv")
+data <- read.csv("Kirk_Data/Epidemics_Data_Dryad/Kirk_et_al_epidemics_sampling_data.csv")
 sub1 <- subset(data.sum, population == 1)
 sub2 <- subset(data.sum, population == 2)
 sub3 <- subset(data.sum, population == 3)
@@ -795,6 +792,23 @@ sub6.ts <- sub6$status.sum[1:20]
 sub7.ts <- sub7$status.sum[1:20]
 sub8.ts <- sub8$status.sum[1:20]
 
+par(mfrow = c(2, 4))
+plot(acf(sub1.ts, lag.max = NULL, type = "partial", plot = FALSE), main = "First Half of Time Series: Population 1", col = "cornflowerblue")
+plot(acf(sub2.ts, lag.max = NULL, type = "partial", plot = FALSE), main = "First Half of Time Series: Population 2", col = "cornflowerblue")
+plot(acf(sub3.ts, lag.max = NULL, type = "partial", plot = FALSE), main = "First Half of Time Series: Population 3", col = "cornflowerblue")
+plot(acf(sub4.ts, lag.max = NULL, type = "partial", plot = FALSE), main = "First Half of Time Series: Population 4", col = "cornflowerblue")
+plot(acf(sub5.ts, lag.max = NULL, type = "partial", plot = FALSE), main = "Pre-Bifurcation Time Series: Population 5", col = "#C82C2D")
+plot(acf(sub6.ts, lag.max = NULL, type = "partial", plot = FALSE), main = "Pre-Bifurcation Time Series: Population 6", col = "#C82C2D")
+plot(acf(sub7.ts, lag.max = NULL, type = "partial", plot = FALSE), main = "Pre-Bifurcation Time Series: Population 7", col = "#C82C2D")
+plot(acf(sub8.ts, lag.max = NULL, type = "partial", plot = FALSE), main = "Pre-Bifurcation Time Series: Population 8", col = "#C82C2D")
+par(mfrow = c(1, 1))
+```
+
+## Generating Surrogate Time Series
+
+**Per Dakos et al. 2008:** "To test against the H0 hypothesis that the data are produced by a colored-noise process with similar variance, mean, and autocorrelation at lag 1 with the original detrended time series (Theiler et al. 1992), we generated surrogate sets by an AR1 model $x_{t+1} = \alpha_1 x_t + \alpha_0 + \sigma \epsilon_t$, where $\alpha_1 = A(1), \sigma^2 = v(1-\alpha_1^2)$, $\alpha_0 = \mu(1-\alpha_1)$, with $v$ the variance, $\mu$ the mean, $A(1)$ the autocorrelation at lag 1 from the residual time series (estimated by using function `acf` as implemented in R), and $\sigma$ a scaling factor for the Gaussian random error $\epsilon_t$.
+
+```{r}
 ## Mean, variance
 sub1.ts.mean <- mean(sub1.ts); sub1.ts.var <- var(sub1.ts); print(c(sub1.ts.mean, sub1.ts.var))
 sub2.ts.mean <- mean(sub2.ts); sub2.ts.var <- var(sub2.ts); print(c(sub2.ts.mean, sub2.ts.var))
