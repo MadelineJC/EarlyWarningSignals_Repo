@@ -2,7 +2,7 @@
 
 This repository contains scripts and data to replicate ["Early warning signals do not predict a warming-induced experimental epidemic"](https://journals.plos.org/globalpublichealth/article?id=10.1371/journal.pgph.0005142) by Madeline Jarvis-Cross (mjarviscross@ucdavis.edu), Devin Kirk, Leila Krichel, Pepijn Luijckx, Péter K. Molnár, and Martin Krkošek. 
 
-Citation: Jarvis-Cross M, Kirk D, Krichel L, Luijckx P, Molnár PK, Krkošek M (2025) Early warning signals do not predict a warming-induced experimental epidemic. PLOS Glob Public Health 5(10): e0005142. https://doi.org/10.1371/journal.pgph.0005142.
+Citation: Jarvis-Cross M, Kirk D, Krichel L, Luijckx P, Molnár PK, Krkošek M (2025) Early warning signals do not predict a warming-induced experimental epidemic. *PLOS Glob Public Health* 5(10): e0005142. https://doi.org/10.1371/journal.pgph.0005142.
 
 Here, we combine experimental and simulated data to assess the predictability of warming-induced epidemic emergence in the *Daphnia magna–Ordospora* colligata host-parasite system. 
 
