@@ -1,6 +1,6 @@
 # EarlyWarningSignals_Repo
 
-This repository contains scripts and data to replicate “**[Early warning signals do not predict a warming-induced experimental epidemic]**” (https://journals.plos.org/globalpublichealth/article?id=10.1371/journal.pgph.0005142), by Madeline Jarvis-Cross (mjarviscross@ucdavis.edu), Devin Kirk, Leila Krichel, Pepijn Luijckx, Péter K. Molnár, and Martin Krkošek. 
+This repository contains scripts and data to replicate [“**Early warning signals do not predict a warming-induced experimental epidemic**”] (https://journals.plos.org/globalpublichealth/article?id=10.1371/journal.pgph.0005142), by Madeline Jarvis-Cross (mjarviscross@ucdavis.edu), Devin Kirk, Leila Krichel, Pepijn Luijckx, Péter K. Molnár, and Martin Krkošek. 
 
 Here, we combine experimental and simulated data to assess the predictability of warming-induced epidemic emergence in the *Daphnia magna–Ordospora* colligata host-parasite system. 
 
@@ -25,7 +25,7 @@ A guide to the “`Data`” folder:
 1. `Simulated`
 	* Contains simulated time series of disease spread within 1000 "Control" and 1000 "Warming" populations.
 2. `Experimental`
-	* Experimental time series of disease spread within 4 "Control" and 4 "Warming" populations. These data were derived from an experiment conducted and published by Kirk et al. ("[Experimental evidence of warming-induced disease emergence and its prediction by a trait-based mechanistic model]")(https://royalsocietypublishing.org/doi/10.1098/rspb.2020.1526).
+	* Experimental time series of disease spread within 4 "Control" and 4 "Warming" populations. These data were derived from an experiment conducted and published by Kirk et al. [("Experimental evidence of warming-induced disease emergence and its prediction by a trait-based mechanistic model")](https://royalsocietypublishing.org/doi/10.1098/rspb.2020.1526).
 
 The "`Objects`" folder contains `.rds` files generated in scripts one through five, including raw and de-trended AUC statistics.
 		
